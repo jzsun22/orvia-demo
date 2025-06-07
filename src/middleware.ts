@@ -52,7 +52,7 @@ export async function middleware(req: NextRequest) {
     return redirectResponse;
   }
 
-  if (isAuthenticated && isAuthRoute) {
+  if (isAuthenticated && (isAuthRoute || req.nextUrl.pathname === '/')) {
     const redirectResponse = NextResponse.redirect(new URL('/dashboard', req.url));
     response.cookies.getAll().forEach(cookie => {
       redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
