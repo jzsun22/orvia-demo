@@ -1,0 +1,32 @@
+# Node.js
+node_modules/
+
+# Next.js
+.next/
+
+# Build artifacts & Caches
+.swc/
+tsconfig.tsbuildinfo
+
+# Environment variables
+.env.local
+
+# IDEs / Editors - User specific
+.vscode/
+.cursor/
+
+# User specific documents
+Proposed Modules & Implementation Plan.txt 
+project-structure-no-hidden.md
+
+# Supabase CLI generated folders
+supabase/.branches/
+supabase/.temp/ 
+
+# Test pages
+src/app/tests
+
+# Unit tests
+src/lib/scheduling/__tests__/
+jest.config.js
+jest.setup.js
