@@ -71,42 +71,17 @@ export async function POST(req: NextRequest) {
         excludeWorkerId,
       };
     } else if (scheduledShiftId && !scheduledShiftId.startsWith('new-shift-')) {
-      // This is an existing shift (presumed to be a valid UUID)
+      // This is an existing shift (presumed to be a valid UUID).
+      // We pass the ID directly to the Supabase function. The function itself contains
+      // the necessary logic for handling specific shift type requirements (e.g., time overrides for Prep/Barista).
+      // Sending the original ID is crucial for the function to correctly exclude the shift-being-edited from conflict checks.
       console.log(`[api/get-eligible-workers] Processing EXISTING shift ID: ${scheduledShiftId}`);
       
-      const { data: shift, error: shiftError } = await supabaseAdmin
-        .from('scheduled_shifts')
-        .select('shift_date, template_id, shift_templates(position_id)')
-        .eq('id', scheduledShiftId)
-        .single();
-
-      if (shiftError || !shift || !shift.shift_templates) {
-        console.error(`[api/get-eligible-workers] Error fetching shift or template details for ID ${scheduledShiftId}`, shiftError);
-        return NextResponse.json({ error: `Failed to get shift details for ID: ${scheduledShiftId}` }, { status: 500 });
-      }
-      
-      // NOTE: This assumes PREP_BARISTA_POSITION_ID is available as an environment variable in the Next.js server runtime.
-      const isPrepBaristaShift = shift.shift_templates.position_id === process.env.PREP_BARISTA_POSITION_ID;
-
-      if (isPrepBaristaShift) {
-        console.log(`[api/get-eligible-workers] Detected existing Prep/Barista shift. Overriding to full time range for eligibility check.`);
-        payloadForSupabaseFunction = {
-            newShiftPayload: {
-              templateId: shift.template_id,
-              shiftDate: shift.shift_date,
-              startTime: '09:30', // Hardcoded full time range
-              endTime: '17:00',
-            },
-            targetAssignmentType,
-            excludeWorkerId,
-        };
-      } else {
-        payloadForSupabaseFunction = {
-          scheduledShiftId,
-          targetAssignmentType,
-          excludeWorkerId,
-        };
-      }
+      payloadForSupabaseFunction = {
+        scheduledShiftId,
+        targetAssignmentType,
+        excludeWorkerId,
+      };
     } else {
       // Invalid combination or missing data
       console.warn('[api/get-eligible-workers] Invalid request parameters:', body);
