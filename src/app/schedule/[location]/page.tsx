@@ -384,7 +384,7 @@ const SchedulePage = () => {
     // Check if a schedule already exists for the current week and location
     if (scheduledShifts.length > 0) {
       const confirmation = window.confirm(
-        "A schedule already exists for this week and location. Overwrite?"
+        "A schedule already exists for this week. Do you want to overwrite it?"
       );
       if (!confirmation) {
         return; // User cancelled the operation
@@ -393,8 +393,30 @@ const SchedulePage = () => {
 
     setIsGenerating(true);
     try {
-    await generateWeeklySchedule(supabase, location.id, weekStart);
-    await fetchScheduledShifts(); 
+      const { data: { user } } = await supabase.auth.getUser();
+      let managerWorkerId: string | undefined = undefined;
+
+      if (user) {
+        // Find the worker_id associated with the logged-in user.
+        // This assumes a 'user_id' column on the 'workers' table linking to auth.users.id.
+        const { data: workerData, error: workerError } = await supabase
+          .from('workers')
+          .select('id')
+          .eq('user_id', user.id)
+          .single();
+
+        if (workerError) {
+          console.warn("Could not find a worker for the current user. Proceeding without manager exclusion.", workerError.message);
+        } else if (workerData) {
+          managerWorkerId = workerData.id;
+        }
+      } else {
+        console.warn("No user is currently logged in. Proceeding without manager exclusion.");
+      }
+      
+      await generateWeeklySchedule(supabase, location.id, weekStart, managerWorkerId);
+      
+      await fetchScheduledShifts(); 
       // Format weekStart for the toast message
       const formattedWeekStart = weekStart.toLocaleDateString('en-US', { 
         year: 'numeric', 
@@ -406,7 +428,7 @@ const SchedulePage = () => {
       console.error("Error during schedule generation process:", error);
       // Error handling toast will be added later here
     } finally {
-    setIsGenerating(false);
+      setIsGenerating(false);
     }
   };
 
