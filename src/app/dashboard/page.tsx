@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
-import { startOfWeek, format } from 'date-fns';
+import { startOfWeek, endOfWeek, format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { capitalizeWords } from '@/lib/utils';
 
@@ -146,7 +146,7 @@ export default function Dashboard() {
               Today: {format(new Date(), 'MMM d, yyyy')}
             </span>
             <span className="font-medium text-muted-foreground">
-              Current Week: {format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'MMM d, yyyy')}
+              Current Week: {format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'MMM d')} - {format(endOfWeek(currentWeek, { weekStartsOn: 1 }), 'MMM d, yyyy')}
             </span>
         </div>
 

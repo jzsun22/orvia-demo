@@ -75,6 +75,7 @@ export default function EmployeesPage() {
   const [editingAvailability, setEditingAvailability] = useState<DatabaseWorker | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isInitialDataLoaded, setIsInitialDataLoaded] = useState(false);
+  const [managerId, setManagerId] = useState<string | null>(null);
   
   const [allLocations, setAllLocations] = useState<Location[]>([]);
   // Filter state hooks for future implementation
@@ -96,6 +97,24 @@ export default function EmployeesPage() {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log('[EmployeesPage] onAuthStateChange event:', event, 'session status:', session ? 'active' : 'inactive');
       if (session) {
+        // Fetch manager's worker ID if not already fetched
+        if (!managerId && session.user?.id) {
+          console.log('[EmployeesPage] Session active, attempting to fetch manager worker ID.');
+          const { data: managerWorker, error: managerError } = await supabase
+            .from('workers')
+            .select('id')
+            .eq('user_id', session.user.id)
+            .single();
+
+          if (managerError) {
+            // This can happen if the logged-in user is not a worker, which is a valid case.
+            console.warn('[EmployeesPage] Could not fetch worker ID for current user:', managerError.message);
+          } else if (managerWorker) {
+            console.log('[EmployeesPage] Manager worker ID found:', managerWorker.id);
+            setManagerId(managerWorker.id);
+          }
+        }
+
         // User is signed in or session restored
         if ((event === 'INITIAL_SESSION' || event === 'SIGNED_IN') && !isInitialDataLoaded) {
           console.log(`[EmployeesPage] ${event} and initial data not loaded. Calling loadInitialData.`);
@@ -119,6 +138,7 @@ export default function EmployeesPage() {
         setFilteredWorkers([]);
         setLoading(false);
         setIsInitialDataLoaded(false); // Reset flag
+        setManagerId(null);
       }
     });
 
@@ -126,7 +146,7 @@ export default function EmployeesPage() {
     return () => {
       authListener?.subscription.unsubscribe();
     };
-  }, [isInitialDataLoaded]); // Added isInitialDataLoaded to dependency array
+  }, [isInitialDataLoaded, managerId]); // Added managerId to dependency array
 
   // Apply search and filters whenever workers or filter criteria change
   useEffect(() => {
@@ -161,10 +181,21 @@ export default function EmployeesPage() {
         worker.locations.some(loc => locationFilter.includes(loc.location.id))
       );
     }
+
+    // Sort the result: manager on top, then alphabetically by name.
+    result.sort((a, b) => {
+      if (managerId) {
+        if (a.id === managerId) return -1;
+        if (b.id === managerId) return 1;
+      }
+      const nameA = formatWorkerName(a.first_name, a.last_name, a.preferred_name);
+      const nameB = formatWorkerName(b.first_name, b.last_name, b.preferred_name);
+      return nameA.localeCompare(nameB);
+    });
     
     setFilteredWorkers(result);
     console.log('[EmployeesPage] Filtered workers result:', result);
-  }, [workers, searchQuery, jobLevelFilter, positionFilter, locationFilter]);
+  }, [workers, searchQuery, jobLevelFilter, positionFilter, locationFilter, managerId]);
 
   const loadInitialData = async () => {
     setLoading(true);

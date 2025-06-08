@@ -59,6 +59,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              defaultValue="test@dev.js"
               required
               className="border-gray-300 focus:border-[#0d5442] focus:ring-[#0d5442]"
             />
@@ -70,6 +71,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              defaultValue="654321"
               required
               className="border-gray-300 focus:border-[#0d5442] focus:ring-[#0d5442]"
             />
