@@ -46,7 +46,7 @@ export function capitalizeWords(str: string | undefined | null): string {
  * @param name The location name string (slug format)
  * @returns The formatted location name
  */
-export function formatLocationName(name: string): string {
+export function formatLocationName(name: string | undefined): string {
   if (!name) return "";
   return name
     .split("-")

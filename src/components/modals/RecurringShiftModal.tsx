@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Location } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { capitalizeWords } from '@/lib/utils';
+import { formatLocationName } from '@/lib/utils';
 
 interface RecurringShift {
   id: string;
@@ -469,13 +470,13 @@ export function RecurringShiftModal({
               <Select value={locationId} onValueChange={setLocationId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location">
-                    {locationId ? capitalizeWords(locations.find(loc => loc.id === locationId)?.name) : "Select location"}
+                    {locationId ? formatLocationName(locations.find(loc => loc.id === locationId)?.name) : "Select location"}
                   </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {locations.map((location) => (
                     <SelectItem key={location.id} value={location.id}>
-                      {capitalizeWords(location.name)}
+                      {formatLocationName(location.name)}
                     </SelectItem>
                   ))}
                   {locations.length === 0 && (

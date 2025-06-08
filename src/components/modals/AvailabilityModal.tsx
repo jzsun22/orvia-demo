@@ -17,6 +17,7 @@ import {
   AlertDialogHeader, 
   AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useAppToast } from "@/lib/toast-service";
+import { formatLocationName } from '@/lib/utils';
 
 // Define the availability type to match the backend structure
 interface Availability {
@@ -672,7 +673,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
                     <div className="space-y-1">
                       <div className="font-medium">{capitalizeDay(shift.day_of_week)}</div>
                       <div className="text-sm text-gray-500">
-                        {shift.location_name} • {shift.position_name} • {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                        {formatLocationName(shift.location_name)} • {shift.position_name} • {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                         {shift.assignment_type === 'lead' && (
                           <span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Lead</span>
                         )}

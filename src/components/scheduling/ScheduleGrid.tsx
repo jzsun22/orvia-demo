@@ -136,8 +136,8 @@ function formatWorkerDisplay(
   let nameOnly = workerName;
 
   if (jobLevel) {
-    const levelDisplay = jobLevel.startsWith('L') ? jobLevel : `L${jobLevel}`;
-    nameOnly = `${workerName}-${levelDisplay}`;
+    const levelDisplay = jobLevel.startsWith('L') ? jobLevel : `L${jobLevel}`; // do not show job level in schedule grid
+    nameOnly = `${workerName}`;
   }
   namePartElements.push(<span key="name">{nameOnly}</span>);
 
@@ -457,7 +457,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                         if (editMode && templatesForCell.length > 0) {
                           cellClasses += " cursor-pointer group hover:bg-gray-100 dark:hover:bg-slate-800";
                         } else if (templatesForCell.length === 0) {
-                          cellClasses += " bg-gray-50";
+                          cellClasses += " bg-slate-100";
                         }
 
                         cells.push(
@@ -549,7 +549,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                                 <Edit3 size={16} className="mx-auto text-gray-400 group-hover:text-primary" />
                               </div>
                             ) : (
-                              <span className={`text-gray-400 ${templatesForCell.length > 0 ? 'text-lg' : ''}`}>{templatesForCell.length > 0 ? '-' : ' '}</span>
+                              <span className={`text-gray-400 ${templatesForCell.length > 0 ? 'text-lg' : ''}`}>{templatesForCell.length > 0 ? '-' : null}</span>
                             )}
                           </td>
                         );
