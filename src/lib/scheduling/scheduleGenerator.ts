@@ -32,12 +32,14 @@ import { fetchSchedulingPrerequisites, fetchWorkerShiftsForWeek } from '@/lib/su
  * @param client The Supabase client to use for fetching prerequisites.
  * @param locationId The UUID of the location to generate the schedule for.
  * @param startDate The start date (typically a Monday) of the week to generate.
+ * @param managerWorkerId The ID of the manager worker (optional).
  * @returns An object indicating success status, any warnings generated, and a list of templates that couldn't be assigned.
  */
 export async function generateWeeklySchedule(
     client: SupabaseClient,
     locationId: string,
-    startDate: Date 
+    startDate: Date,
+    managerWorkerId?: string
 ): Promise<{
     success: boolean;
     warnings: string[];
@@ -71,11 +73,17 @@ export async function generateWeeklySchedule(
             recurringAssignments 
         } = prerequisites;
 
+        // Exclude the manager from the list of workers available for scheduling
+        const schedulableWorkers = managerWorkerId
+            ? workers.filter(worker => worker.id !== managerWorkerId)
+            : workers;
+        console.log(`[ScheduleGenerator] Total workers before manager exclusion: ${workers.length}. After exclusion: ${schedulableWorkers.length}.`);
+
         // Filter workers to only those assigned to the current locationId
-        const workersForLocation = workers.filter(worker => 
+        const workersForLocation = schedulableWorkers.filter(worker => 
             (worker as any).locations?.some((wl: { location: { id: string; [key: string]: any; } }) => wl.location?.id === locationId)
         );
-        console.log(`[ScheduleGenerator] Fetched ${workers.length} total workers. After filtering for location ${locationId}, ${workersForLocation.length} workers remain.`);
+        console.log(`[ScheduleGenerator] After filtering for location ${locationId}, ${workersForLocation.length} workers remain.`);
 
         // Filter out inactive workers from the location-specific list
         const activeWorkers = workersForLocation.filter(worker => worker.inactive !== true);
