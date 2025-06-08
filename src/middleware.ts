@@ -13,21 +13,23 @@ export async function middleware(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return req.cookies.getAll();
+        get(name: string) {
+          return req.cookies.get(name)?.value;
         },
-        setAll(cookiesToSet: Array<{ name: string; value: string; options: CookieOptions }>) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            req.cookies.set({
-              name,
-              value,
-              ...options,
-            });
-            response.cookies.set({
-              name,
-              value,
-              ...options,
-            });
+        set(name: string, value: string, options: CookieOptions) {
+          // The cookie is set on the response so the browser knows about the session.
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          });
+        },
+        remove(name: string, options: CookieOptions) {
+          // The cookie is removed from the response.
+          response.cookies.set({
+            name,
+            value: '',
+            ...options,
           });
         },
       },
@@ -36,28 +38,22 @@ export async function middleware(req: NextRequest) {
 
   const { data: { user }, error: userError } = await supabase.auth.getUser();
 
+  // This logic is restored from your original middleware
   const isAuthenticated = !!user && !userError;
-
-  const isAuthRoute = req.nextUrl.pathname === '/login';
+  const isAuthRoute = req.nextUrl.pathname.startsWith('/login');
 
   if (!isAuthenticated && !isAuthRoute) {
     let from = req.nextUrl.pathname;
     if (req.nextUrl.search) {
       from += req.nextUrl.search;
     }
-    const redirectResponse = NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
-    response.cookies.getAll().forEach(cookie => {
-      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
-    });
-    return redirectResponse;
+    // Use the main response object for redirection
+    response = NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
   }
 
   if (isAuthenticated && (isAuthRoute || req.nextUrl.pathname === '/')) {
-    const redirectResponse = NextResponse.redirect(new URL('/dashboard', req.url));
-    response.cookies.getAll().forEach(cookie => {
-      redirectResponse.cookies.set(cookie.name, cookie.value, cookie);
-    });
-    return redirectResponse;
+    // Use the main response object for redirection
+    response = NextResponse.redirect(new URL('/dashboard', req.url));
   }
 
   return response;
