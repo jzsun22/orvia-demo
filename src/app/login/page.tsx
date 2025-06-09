@@ -9,9 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 
+
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState('test@dev.js');
+  const [password, setPassword] = useState('654321');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -56,10 +57,9 @@ export default function LoginPage() {
             <Input
               id="email"
               type="email"
-              placeholder="you@example.com"
+              placeholder="test@dev.js"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              defaultValue="test@dev.js"
               required
               className="border-gray-300 focus:border-[#0d5442] focus:ring-[#0d5442]"
             />
@@ -71,7 +71,6 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              defaultValue="654321"
               required
               className="border-gray-300 focus:border-[#0d5442] focus:ring-[#0d5442]"
             />
