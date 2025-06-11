@@ -404,8 +404,10 @@ export type Database = {
       workers: {
         Row: {
           availability: Json | null
+          birthday: string | null
           created_at: string | null
           first_name: string | null
+          gender: string | null
           id: string
           inactive: boolean | null
           is_lead: boolean | null
@@ -417,8 +419,10 @@ export type Database = {
         }
         Insert: {
           availability?: Json | null
+          birthday?: string | null
           created_at?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string
           inactive?: boolean | null
           is_lead?: boolean | null
@@ -430,8 +434,10 @@ export type Database = {
         }
         Update: {
           availability?: Json | null
+          birthday?: string | null
           created_at?: string | null
           first_name?: string | null
+          gender?: string | null
           id?: string
           inactive?: boolean | null
           is_lead?: boolean | null
