@@ -1,9 +1,9 @@
 "use client"
 
 import Link from "next/link"
-// import Image from "next/image" // Image component can be added back if a logo is used
 import { usePathname } from "next/navigation"
-import { useState, useEffect } from "react" 
+import { useState, useEffect } from "react"
+import Image from "next/image"
 
 import { cn, formatLocationName } from "@/lib/utils"
 import { supabase } from "@/lib/supabase/client"
@@ -13,7 +13,6 @@ import {
   Users,
   ChevronDown,
   ChevronUp,
-  Briefcase, // Placeholder for Logo
   UserCircle, // Placeholder for user avatar
 } from "lucide-react"
 
@@ -102,13 +101,19 @@ export function SidebarNav() {
   return (
     <div className="flex h-screen w-72 flex-col border-r border-neutral-200 bg-white p-6">
       {/* Header with Logo and App Name - Reduced size */}
-      <div className="mb-8 flex items-center space-x-2 px-1"> {/* Adjusted mb, space-x, px */}
-        <Briefcase className="h-7 w-7 text-[#0d5442]" /> {/* Adjusted icon size */}
-        <h1 className="text-2xl font-bold text-[#0d5442]">Tong sui</h1> {/* Adjusted text size */}
+      <div className="mb-8 flex items-center space-x-0 px-1"> {/* Adjusted mb, space-x, px */}
+        <Image
+          src="/rose_logo.png"
+          alt="Silken Bloom Logo"
+          width={64}
+          height={64}
+          className="h-16 w-16"
+        />
+        <h1 className="text-xl font-semibold text-[#0d5442]">Silken Bloom</h1> {/* Adjusted text size */}
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 space-y-1.5"> {/* Adjusted space-y */}
+      <nav className="flex-1 space-y-2"> {/* Adjusted space-y */}
         {baseNavigation.map((item) => {
           const isActive =
             pathname === item.href ||
