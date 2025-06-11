@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useAppToast } from "@/lib/toast-service";
 import { formatLocationName } from "@/lib/utils";
+import ScheduleGridSkeleton from "@/components/scheduling/ScheduleGridSkeleton";
 
 const PT_TIMEZONE = 'America/Los_Angeles';
 
@@ -477,20 +478,18 @@ const SchedulePage = () => {
         </div>
       </div>
       
+      <div className="mb-4">
+        <WeekNavigator weekStart={weekStart} onPrev={handlePrevWeek} onNext={handleNextWeek} />
+      </div>
+
       {isContentLoading ? (
-        <div className="flex flex-col justify-center items-center h-64">
-          <span className="animate-spin w-10 h-10 border-4 border-primary border-t-transparent rounded-full" />
-          <p className="ml-0 mt-4 text-lg text-gray-600">Loading schedule data...</p>
-        </div>
+        <ScheduleGridSkeleton />
       ) : !location ? (
         <div className="flex justify-center items-center h-64">
           <p className="text-xl text-destructive">Location "{formatLocationName(locationSlug || 'unknown')}" not found.</p>
         </div>
       ) : (
         <>
-          <div className="mb-4">
-            <WeekNavigator weekStart={weekStart} onPrev={handlePrevWeek} onNext={handleNextWeek} />
-          </div>
           <ScheduleGrid
             weekStart={weekStart}
             scheduledShifts={scheduledShifts}
