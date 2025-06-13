@@ -107,7 +107,23 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    fetchLocationData();
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        // On initial load, sign in, or token refresh, fetch data.
+        // TOKEN_REFRESHED is key for fixing the bug.
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          await fetchLocationData();
+        }
+      } else {
+        // If the user signs out, clear the data. The middleware will redirect to login.
+        setLocations([]);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
   const handleViewSchedule = (locationName: string) => {

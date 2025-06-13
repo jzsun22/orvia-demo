@@ -166,6 +166,74 @@ const SchedulePage = () => {
   const [baseMetaLoading, setBaseMetaLoading] = useState(true);
   const [shiftsDataLoading, setShiftsDataLoading] = useState(true);
 
+  const fetchLocationData = useCallback(async () => {
+    if (!locationSlug) {
+      setLocationLoading(false);
+      setLocation(null);
+      return;
+    }
+    setLocationLoading(true);
+    try {
+      const querySlug = locationSlug.toLowerCase().trim();
+
+      const { data, error } = await supabase.from("locations").select("id, name").eq("name", querySlug).single();
+      
+      if (error) { 
+        console.error(`Error fetching location for slug '${querySlug}':`, error.message); 
+        setLocation(null); 
+      } else if (data) { 
+        setLocation(data);
+      } else {
+        console.warn(`No location data returned for slug '${querySlug}' (and no error from .single()). This is unexpected.`); 
+        setLocation(null); 
+      }
+    } catch (e) { 
+      console.error("Exception fetching location:", e); 
+      setLocation(null); 
+    }
+    finally { 
+      setLocationLoading(false); 
+    }
+  }, [locationSlug]);
+
+  const fetchBaseMetadata = useCallback(async () => {
+    setBaseMetaLoading(true);
+    try {
+      const [workersRes, templatesRes, positionsRes] = await Promise.all([
+        supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
+        supabase.from("shift_templates").select("*"), 
+        supabase.from("positions").select("id, name"),
+      ]);
+      if (!workersRes.error && workersRes.data) setWorkers(workersRes.data);
+      else console.error("Error fetching workers:", workersRes.error?.message);
+      if (!templatesRes.error && templatesRes.data) setAllShiftTemplates(templatesRes.data);
+      else console.error("Error fetching shift templates:", templatesRes.error?.message);
+      if (!positionsRes.error && positionsRes.data) setPositions(positionsRes.data);
+      else console.error("Error fetching positions:", positionsRes.error?.message);
+    } catch (e) { console.error("Exception fetching base metadata:", e); }
+    finally { setBaseMetaLoading(false); }
+  }, []);
+  
+  useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (session?.user) {
+          if (
+            event === "INITIAL_SESSION" ||
+            event === "SIGNED_IN" ||
+            event === "TOKEN_REFRESHED"
+          ) {
+            fetchLocationData();
+            fetchBaseMetadata();
+          }
+        }
+      }
+    );
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, [fetchLocationData, fetchBaseMetadata]);
+
   useEffect(() => {
     if (!locationSlug) return;
     const weekParam = searchParams.get('week');
@@ -206,58 +274,6 @@ const SchedulePage = () => {
     const currentWeekMondayPT = getWeekStartPT(new Date());
     setIsPastWeek(weekStart.getTime() < currentWeekMondayPT.getTime());
   }, [weekStart]);
-
-  useEffect(() => {
-    const fetchLocationData = async () => {
-      if (!locationSlug) {
-        setLocationLoading(false); setLocation(null); return;
-      }
-      setLocationLoading(true);
-      try {
-        const querySlug = locationSlug.toLowerCase().trim();
-
-        const { data, error } = await supabase.from("locations").select("id, name").eq("name", querySlug).single();
-        
-        if (error) { 
-          console.error(`Error fetching location for slug '${querySlug}':`, error.message); 
-          setLocation(null); 
-        } else if (data) { 
-          setLocation(data);
-        } else {
-          console.warn(`No location data returned for slug '${querySlug}' (and no error from .single()). This is unexpected.`); 
-          setLocation(null); 
-        }
-      } catch (e) { 
-        console.error("Exception fetching location:", e); 
-        setLocation(null); 
-      }
-      finally { 
-        setLocationLoading(false); 
-      }
-    };
-    fetchLocationData();
-  }, [locationSlug]);
-
-  useEffect(() => {
-    const fetchBaseMetadata = async () => {
-      setBaseMetaLoading(true);
-      try {
-        const [workersRes, templatesRes, positionsRes] = await Promise.all([
-          supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
-          supabase.from("shift_templates").select("*"), 
-          supabase.from("positions").select("id, name"),
-        ]);
-        if (!workersRes.error && workersRes.data) setWorkers(workersRes.data);
-        else console.error("Error fetching workers:", workersRes.error?.message);
-        if (!templatesRes.error && templatesRes.data) setAllShiftTemplates(templatesRes.data);
-        else console.error("Error fetching shift templates:", templatesRes.error?.message);
-        if (!positionsRes.error && positionsRes.data) setPositions(positionsRes.data);
-        else console.error("Error fetching positions:", positionsRes.error?.message);
-      } catch (e) { console.error("Exception fetching base metadata:", e); }
-      finally { setBaseMetaLoading(false); }
-    };
-    fetchBaseMetadata();
-  }, []);
 
   const fetchScheduledShifts = useCallback(async () => {
     setShiftsDataLoading(true);
