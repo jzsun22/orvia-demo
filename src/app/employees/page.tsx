@@ -82,6 +82,8 @@ export default function EmployeesPage() {
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
 
   const loadInitialData = useCallback(async () => {
+    if (loading) return;
+    
     setLoading(true);
     setError(null);
     try {
@@ -101,11 +103,11 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !loading) {
+      if (document.visibilityState === 'visible') {
         loadInitialData();
       }
     };
@@ -139,7 +141,7 @@ export default function EmployeesPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [loadInitialData, loading]);
+  }, [loadInitialData]);
 
   useEffect(() => {
     let result = [...workers];

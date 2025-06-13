@@ -175,9 +175,10 @@ const SchedulePage = () => {
       return;
     }
 
-    setBaseMetaLoading(true);
-    setLocationLoading(true);
-    setShiftsDataLoading(true);
+    // Only set loading states if they're not already loading
+    if (!locationLoading) setLocationLoading(true);
+    if (!baseMetaLoading) setBaseMetaLoading(true);
+    if (!shiftsDataLoading) setShiftsDataLoading(true);
 
     try {
       const { data: locData, error: locError } = await supabase
@@ -210,11 +211,11 @@ const SchedulePage = () => {
       setLocationLoading(false);
       setBaseMetaLoading(false);
     }
-  }, [locationSlug]);
+  }, [locationSlug, locationLoading, baseMetaLoading, shiftsDataLoading]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !locationLoading && !baseMetaLoading && !shiftsDataLoading) {
+      if (document.visibilityState === 'visible') {
         fetchAllData();
       }
     };
@@ -231,7 +232,7 @@ const SchedulePage = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [fetchAllData, locationLoading, baseMetaLoading, shiftsDataLoading]);
+  }, [fetchAllData]);
 
   useEffect(() => {
     if (!locationSlug) return;
@@ -275,11 +276,16 @@ const SchedulePage = () => {
   }, [weekStart]);
 
   const fetchScheduledShifts = useCallback(async () => {
-    setShiftsDataLoading(true);
+    if (!location || positions.length === 0 || allShiftTemplates.length === 0) { 
+      setScheduledShifts([]); 
+      setShiftsDataLoading(false);
+      return;
+    }
+
+    // Only set loading if not already loading
+    if (!shiftsDataLoading) setShiftsDataLoading(true);
+    
     try {
-      if (!location || positions.length === 0 || allShiftTemplates.length === 0) { 
-          setScheduledShifts([]); return;
-      }
       const firstDayOfWeekQuery = weekStart;
       const lastDayOfWeekQuery = new Date(firstDayOfWeekQuery.getTime());
       lastDayOfWeekQuery.setUTCDate(lastDayOfWeekQuery.getUTCDate() + 6);
@@ -292,14 +298,14 @@ const SchedulePage = () => {
         .select("id, shift_date, template_id, start_time, end_time, is_recurring_generated") 
         .gte("shift_date", startDateQueryStr).lte("shift_date", endDateQueryStr);
 
-      if (error) { console.error("Error fetching scheduled shifts for date range:", error.message); setScheduledShifts([]); return; }
-      if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) { setScheduledShifts([]); return; }
+      if (error) { console.error("Error fetching scheduled shifts for date range:", error.message); setScheduledShifts([]); setShiftsDataLoading(false); return; }
+      if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) { setScheduledShifts([]); setShiftsDataLoading(false); return; }
       
       const templateIdsForCurrentLocation = allShiftTemplates.filter(t => t.location_id === location.id).map(t => t.id);
       const relevantScheduledShifts = allShiftsForDateRange.filter(s => 
         s.template_id !== null && templateIdsForCurrentLocation.includes(s.template_id)
       );
-      if (relevantScheduledShifts.length === 0) { setScheduledShifts([]); return; }
+      if (relevantScheduledShifts.length === 0) { setScheduledShifts([]); setShiftsDataLoading(false); return; }
 
       const shiftIds = relevantScheduledShifts.map(s => s.id);
       const { data: assignmentsWithWorkers, error: assignmentsError } = await supabase.from('shift_assignments')
@@ -313,7 +319,9 @@ const SchedulePage = () => {
           const position = template ? positions.find(p => p.id === template.position_id) : null;
           const positionName = position ? position.name : 'N/A';
           return {...s, worker_id: null, workerName: 'Error', job_level: null, assigned_start_time: null, assigned_end_time: null, is_manual_override: null };
-        })); return;
+        })); 
+        setShiftsDataLoading(false);
+        return;
       }
       
       const populatedShifts: ScheduledShiftForGrid[] = relevantScheduledShifts.map(shift => {
@@ -352,9 +360,13 @@ const SchedulePage = () => {
         };
       });
       setScheduledShifts(populatedShifts);
-    } catch (e) { console.error("Exception fetching scheduled shifts:", e); setScheduledShifts([]); }
-    finally { setShiftsDataLoading(false); }
-  }, [location, weekStart, allShiftTemplates, positions]); 
+    } catch (e) { 
+      console.error("Exception fetching scheduled shifts:", e); 
+      setScheduledShifts([]); 
+    } finally { 
+      setShiftsDataLoading(false); 
+    }
+  }, [location, weekStart, allShiftTemplates, positions, shiftsDataLoading]);
 
   useEffect(() => {
     if (!locationLoading && !baseMetaLoading && location && allShiftTemplates.length > 0 && positions.length > 0) {

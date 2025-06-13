@@ -33,6 +33,8 @@ export default function Dashboard() {
   };
 
   const fetchLocationData = useCallback(async () => {
+    if (loading) return;
+    
     setLoading(true);
     setError(null);
     try {
@@ -104,11 +106,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && !loading) {
+      if (document.visibilityState === 'visible') {
         fetchLocationData();
       }
     };
@@ -124,7 +126,7 @@ export default function Dashboard() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [fetchLocationData, loading]);
+  }, [fetchLocationData]);
 
   const handleViewSchedule = (locationName: string) => {
     router.push(`/schedule/${locationName}?week=${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')}`);
