@@ -457,7 +457,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                         if (editMode && templatesForCell.length > 0) {
                           cellClasses += " cursor-pointer group hover:bg-gray-100 dark:hover:bg-slate-800";
                         } else if (templatesForCell.length === 0) {
-                          cellClasses += " bg-slate-100";
+                          cellClasses += " bg-emerald-50";
                         }
 
                         cells.push(
