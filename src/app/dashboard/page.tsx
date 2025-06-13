@@ -108,7 +108,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !loading) {
         fetchLocationData();
       }
     };
@@ -124,7 +124,7 @@ export default function Dashboard() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [fetchLocationData]);
+  }, [fetchLocationData, loading]);
 
   const handleViewSchedule = (locationName: string) => {
     router.push(`/schedule/${locationName}?week=${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')}`);

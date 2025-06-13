@@ -214,7 +214,7 @@ const SchedulePage = () => {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !locationLoading && !baseMetaLoading && !shiftsDataLoading) {
         fetchAllData();
       }
     };
@@ -231,7 +231,7 @@ const SchedulePage = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [fetchAllData]);
+  }, [fetchAllData, locationLoading, baseMetaLoading, shiftsDataLoading]);
 
   useEffect(() => {
     if (!locationSlug) return;

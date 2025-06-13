@@ -105,7 +105,7 @@ export default function EmployeesPage() {
 
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && !loading) {
         loadInitialData();
       }
     };
@@ -139,7 +139,7 @@ export default function EmployeesPage() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [loadInitialData]);
+  }, [loadInitialData, loading]);
 
   useEffect(() => {
     let result = [...workers];
