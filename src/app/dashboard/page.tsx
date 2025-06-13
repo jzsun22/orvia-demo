@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
@@ -21,6 +21,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const currentWeek = new Date();
   const [error, setError] = useState<string | null>(null);
+  const isFetching = useRef(false);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -33,7 +34,8 @@ export default function Dashboard() {
   };
 
   const fetchLocationData = useCallback(async () => {
-    if (loading && locations.length > 0) return;
+    if (isFetching.current) return;
+    isFetching.current = true;
     
     setLoading(true);
     setError(null);
@@ -104,9 +106,10 @@ export default function Dashboard() {
       console.error('Error fetching location data:', err);
       setError('Failed to load dashboard data.');
     } finally {
+      isFetching.current = false;
       setLoading(false);
     }
-  }, [loading, locations.length]);
+  }, []);
 
   useEffect(() => {
     fetchLocationData();

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { generateWeeklySchedule } from "@/lib/scheduling/scheduleGenerator";
@@ -165,22 +165,25 @@ const SchedulePage = () => {
   const [locationLoading, setLocationLoading] = useState(true);
   const [baseMetaLoading, setBaseMetaLoading] = useState(true);
   const [shiftsDataLoading, setShiftsDataLoading] = useState(true);
+  
+  const isFetchingAll = useRef(false);
+  const isFetchingShifts = useRef(false);
 
   const fetchAllData = useCallback(async () => {
+    if (isFetchingAll.current) return;
+    isFetchingAll.current = true;
+
     if (!locationSlug) {
       setLocationLoading(false);
       setBaseMetaLoading(false);
       setShiftsDataLoading(false);
       setLocation(null);
+      isFetchingAll.current = false;
       return;
     }
 
-    // Don't prevent initial load, but prevent duplicate fetches
-    if (locationLoading && baseMetaLoading && location) return;
-
     setLocationLoading(true);
     setBaseMetaLoading(true);
-    setShiftsDataLoading(true);
 
     try {
       const { data: locData, error: locError } = await supabase
@@ -212,13 +215,9 @@ const SchedulePage = () => {
     } finally {
       setLocationLoading(false);
       setBaseMetaLoading(false);
+      isFetchingAll.current = false;
     }
-  }, [locationSlug, locationLoading, baseMetaLoading, location]);
-
-  // Add an initial data fetch effect
-  useEffect(() => {
-    fetchAllData();
-  }, [fetchAllData]);
+  }, [locationSlug]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -283,15 +282,15 @@ const SchedulePage = () => {
   }, [weekStart]);
 
   const fetchScheduledShifts = useCallback(async () => {
+    if (isFetchingShifts.current) return;
+    
     if (!location || positions.length === 0 || allShiftTemplates.length === 0) { 
-      setScheduledShifts([]); 
-      setShiftsDataLoading(false);
-      return;
+        setScheduledShifts([]); 
+        setShiftsDataLoading(false);
+        return;
     }
 
-    // Don't prevent initial load, but prevent duplicate fetches
-    if (shiftsDataLoading && scheduledShifts.length > 0) return;
-
+    isFetchingShifts.current = true;
     setShiftsDataLoading(true);
     
     try {
@@ -369,13 +368,12 @@ const SchedulePage = () => {
         };
       });
       setScheduledShifts(populatedShifts);
-    } catch (e) { 
-      console.error("Exception fetching scheduled shifts:", e); 
-      setScheduledShifts([]); 
-    } finally { 
+    } catch (e) { console.error("Exception fetching scheduled shifts:", e); setScheduledShifts([]); }
+    finally { 
       setShiftsDataLoading(false); 
+      isFetchingShifts.current = false;
     }
-  }, [location, weekStart, allShiftTemplates, positions, shiftsDataLoading, scheduledShifts.length]);
+  }, [location, weekStart, allShiftTemplates, positions]);
 
   useEffect(() => {
     if (!locationLoading && !baseMetaLoading && location && allShiftTemplates.length > 0 && positions.length > 0) {

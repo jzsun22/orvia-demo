@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { fetchWorkers } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase/client'
 import { PlusCircle, Search, ChevronDown } from 'lucide-react';
@@ -80,9 +80,11 @@ export default function EmployeesPage() {
   const [managerId, setManagerId] = useState<string | null>(null);
   const [allLocations, setAllLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
+  const isFetching = useRef(false);
 
   const loadInitialData = useCallback(async () => {
-    if (loading && workers.length > 0) return;
+    if (isFetching.current) return;
+    isFetching.current = true;
     
     setLoading(true);
     setError(null);
@@ -101,13 +103,10 @@ export default function EmployeesPage() {
     } catch (err: any) {
       setError('Failed to load initial data. ' + err.message);
     } finally {
+      isFetching.current = false;
       setLoading(false);
     }
-  }, [loading, workers.length]);
-
-  useEffect(() => {
-    loadInitialData();
-  }, [loadInitialData]);
+  }, []);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
