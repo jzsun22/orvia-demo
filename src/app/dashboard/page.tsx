@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
@@ -32,7 +32,7 @@ export default function Dashboard() {
     }
   };
 
-  const fetchLocationData = async () => {
+  const fetchLocationData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -104,27 +104,27 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchLocationData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        // On initial load, sign in, or token refresh, fetch data.
-        // TOKEN_REFRESHED is key for fixing the bug.
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          await fetchLocationData();
-        }
-      } else {
-        // If the user signs out, clear the data. The middleware will redirect to login.
-        setLocations([]);
-        setLoading(false);
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        await fetchLocationData();
       }
     });
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchLocationData]);
 
   const handleViewSchedule = (locationName: string) => {
     router.push(`/schedule/${locationName}?week=${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')}`);

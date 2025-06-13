@@ -166,73 +166,72 @@ const SchedulePage = () => {
   const [baseMetaLoading, setBaseMetaLoading] = useState(true);
   const [shiftsDataLoading, setShiftsDataLoading] = useState(true);
 
-  const fetchLocationData = useCallback(async () => {
+  const fetchAllData = useCallback(async () => {
     if (!locationSlug) {
       setLocationLoading(false);
+      setBaseMetaLoading(false);
+      setShiftsDataLoading(false);
       setLocation(null);
       return;
     }
-    setLocationLoading(true);
-    try {
-      const querySlug = locationSlug.toLowerCase().trim();
 
-      const { data, error } = await supabase.from("locations").select("id, name").eq("name", querySlug).single();
+    setBaseMetaLoading(true);
+    setLocationLoading(true);
+    setShiftsDataLoading(true);
+
+    try {
+      const { data: locData, error: locError } = await supabase
+        .from("locations")
+        .select("id, name")
+        .eq("name", locationSlug.toLowerCase().trim())
+        .single();
       
-      if (error) { 
-        console.error(`Error fetching location for slug '${querySlug}':`, error.message); 
-        setLocation(null); 
-      } else if (data) { 
-        setLocation(data);
-      } else {
-        console.warn(`No location data returned for slug '${querySlug}' (and no error from .single()). This is unexpected.`); 
-        setLocation(null); 
-      }
-    } catch (e) { 
-      console.error("Exception fetching location:", e); 
-      setLocation(null); 
-    }
-    finally { 
-      setLocationLoading(false); 
+      if (locError) throw locError;
+      setLocation(locData);
+
+      const [workersRes, templatesRes, positionsRes] = await Promise.all([
+        supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
+        supabase.from("shift_templates").select("*"),
+        supabase.from("positions").select("id, name"),
+      ]);
+
+      if (workersRes.error) throw workersRes.error;
+      setWorkers(workersRes.data);
+
+      if (templatesRes.error) throw templatesRes.error;
+      setAllShiftTemplates(templatesRes.data);
+
+      if (positionsRes.error) throw positionsRes.error;
+      setPositions(positionsRes.data);
+
+    } catch (e: any) {
+      console.error("Error fetching page data:", e.message);
+    } finally {
+      setLocationLoading(false);
+      setBaseMetaLoading(false);
     }
   }, [locationSlug]);
 
-  const fetchBaseMetadata = useCallback(async () => {
-    setBaseMetaLoading(true);
-    try {
-      const [workersRes, templatesRes, positionsRes] = await Promise.all([
-        supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
-        supabase.from("shift_templates").select("*"), 
-        supabase.from("positions").select("id, name"),
-      ]);
-      if (!workersRes.error && workersRes.data) setWorkers(workersRes.data);
-      else console.error("Error fetching workers:", workersRes.error?.message);
-      if (!templatesRes.error && templatesRes.data) setAllShiftTemplates(templatesRes.data);
-      else console.error("Error fetching shift templates:", templatesRes.error?.message);
-      if (!positionsRes.error && positionsRes.data) setPositions(positionsRes.data);
-      else console.error("Error fetching positions:", positionsRes.error?.message);
-    } catch (e) { console.error("Exception fetching base metadata:", e); }
-    finally { setBaseMetaLoading(false); }
-  }, []);
-  
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (session?.user) {
-          if (
-            event === "INITIAL_SESSION" ||
-            event === "SIGNED_IN" ||
-            event === "TOKEN_REFRESHED"
-          ) {
-            fetchLocationData();
-            fetchBaseMetadata();
-          }
-        }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchAllData();
       }
-    );
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        fetchAllData();
+      }
+    });
+
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, [fetchLocationData, fetchBaseMetadata]);
+  }, [fetchAllData]);
 
   useEffect(() => {
     if (!locationSlug) return;

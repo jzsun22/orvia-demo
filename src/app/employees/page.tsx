@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { fetchWorkers } from '@/lib/supabase';
 import { supabase } from '@/lib/supabase/client'
 import { PlusCircle, Search, ChevronDown } from 'lucide-react';
@@ -81,7 +81,7 @@ export default function EmployeesPage() {
   const [allLocations, setAllLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -101,12 +101,19 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadInitialData();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
           await loadInitialData();
         }
 
@@ -129,9 +136,10 @@ export default function EmployeesPage() {
     });
 
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [loadInitialData]);
 
   useEffect(() => {
     let result = [...workers];
