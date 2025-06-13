@@ -82,7 +82,7 @@ export default function EmployeesPage() {
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
 
   const loadInitialData = useCallback(async () => {
-    if (loading) return;
+    if (loading && workers.length > 0) return;
     
     setLoading(true);
     setError(null);
@@ -103,7 +103,11 @@ export default function EmployeesPage() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [loading, workers.length]);
+
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {

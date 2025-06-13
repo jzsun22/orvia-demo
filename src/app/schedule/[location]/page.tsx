@@ -175,10 +175,12 @@ const SchedulePage = () => {
       return;
     }
 
-    // Only set loading states if they're not already loading
-    if (!locationLoading) setLocationLoading(true);
-    if (!baseMetaLoading) setBaseMetaLoading(true);
-    if (!shiftsDataLoading) setShiftsDataLoading(true);
+    // Don't prevent initial load, but prevent duplicate fetches
+    if (locationLoading && baseMetaLoading && location) return;
+
+    setLocationLoading(true);
+    setBaseMetaLoading(true);
+    setShiftsDataLoading(true);
 
     try {
       const { data: locData, error: locError } = await supabase
@@ -211,7 +213,12 @@ const SchedulePage = () => {
       setLocationLoading(false);
       setBaseMetaLoading(false);
     }
-  }, [locationSlug, locationLoading, baseMetaLoading, shiftsDataLoading]);
+  }, [locationSlug, locationLoading, baseMetaLoading, location]);
+
+  // Add an initial data fetch effect
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
@@ -282,8 +289,10 @@ const SchedulePage = () => {
       return;
     }
 
-    // Only set loading if not already loading
-    if (!shiftsDataLoading) setShiftsDataLoading(true);
+    // Don't prevent initial load, but prevent duplicate fetches
+    if (shiftsDataLoading && scheduledShifts.length > 0) return;
+
+    setShiftsDataLoading(true);
     
     try {
       const firstDayOfWeekQuery = weekStart;
@@ -366,7 +375,7 @@ const SchedulePage = () => {
     } finally { 
       setShiftsDataLoading(false); 
     }
-  }, [location, weekStart, allShiftTemplates, positions, shiftsDataLoading]);
+  }, [location, weekStart, allShiftTemplates, positions, shiftsDataLoading, scheduledShifts.length]);
 
   useEffect(() => {
     if (!locationLoading && !baseMetaLoading && location && allShiftTemplates.length > 0 && positions.length > 0) {

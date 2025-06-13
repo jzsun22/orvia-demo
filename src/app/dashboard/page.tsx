@@ -33,7 +33,7 @@ export default function Dashboard() {
   };
 
   const fetchLocationData = useCallback(async () => {
-    if (loading) return;
+    if (loading && locations.length > 0) return;
     
     setLoading(true);
     setError(null);
@@ -106,7 +106,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [loading]);
+  }, [loading, locations.length]);
+
+  useEffect(() => {
+    fetchLocationData();
+  }, [fetchLocationData]);
 
   useEffect(() => {
     const handleVisibilityChange = () => {
