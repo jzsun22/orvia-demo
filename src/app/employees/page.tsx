@@ -22,6 +22,7 @@ import { formatWorkerName, formatLocationName } from '@/lib/utils';
 import { JobLevel, Location } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import EmployeeTableSkeleton from '@/components/employees/EmployeeTableSkeleton';
+import { useRouter } from 'next/navigation';
 
 interface DatabaseWorker {
   id: string;
@@ -68,6 +69,7 @@ interface Employee {
 }
 
 export default function EmployeesPage() {
+  const router = useRouter();
   const [workers, setWorkers] = useState<DatabaseWorker[]>([]);
   const [filteredWorkers, setFilteredWorkers] = useState<DatabaseWorker[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,9 +96,7 @@ export default function EmployeesPage() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    if (workersRef.current.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     setError(null);
     try {
       const [fetchedWorkers, locationsData] = await Promise.all([
@@ -105,7 +105,6 @@ export default function EmployeesPage() {
       ]);
 
       if (controller.signal.aborted) return;
-      
       if (locationsData.error) throw locationsData.error;
       
       if (!controller.signal.aborted) {
@@ -126,29 +125,34 @@ export default function EmployeesPage() {
   }, []);
 
   useEffect(() => {
-    loadInitialData();
-
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (session?.user) {
-        if (event === 'SIGNED_IN') {
-          await loadInitialData();
-        }
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (session?.user) {
+            await loadInitialData();
+            const { data: managerWorker } = await supabase
+              .from('workers')
+              .select('id')
+              .eq('user_id', session.user.id)
+              .single();
 
-        const { data: managerWorker } = await supabase
-          .from('workers')
-          .select('id')
-          .eq('user_id', session.user.id)
-          .single();
-
-        if (managerWorker) {
-          setManagerId(managerWorker.id);
+            if (managerWorker) {
+              setManagerId(managerWorker.id);
+            }
+        } else {
+            // No session, redirect or show error
+            setLoading(false);
+            setError("User not authenticated. Please log in.");
+            setWorkers([]);
+            setFilteredWorkers([]);
+            setManagerId(null);
         }
-      } else {
-        setLoading(false);
-        setError("User not authenticated. Please log in.");
-        setWorkers([]);
-        setFilteredWorkers([]);
-        setManagerId(null);
+      } else if (event === 'SIGNED_OUT') {
+          setWorkers([]);
+          setFilteredWorkers([]);
+          setAllLocations([]);
+          setManagerId(null);
+          setError(null);
+          router.push('/login');
       }
     });
 
@@ -156,7 +160,7 @@ export default function EmployeesPage() {
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };
-  }, [loadInitialData]);
+  }, [loadInitialData, router]);
 
   useEffect(() => {
     let result = [...workers];

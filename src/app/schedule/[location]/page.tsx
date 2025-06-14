@@ -167,16 +167,6 @@ const SchedulePage = () => {
   const [shiftsDataLoading, setShiftsDataLoading] = useState(true);
   
   const abortControllerRef = useRef<AbortController | null>(null);
-  const locationRef = useRef<Location | null>(null);
-  const scheduledShiftsRef = useRef<ScheduledShiftForGrid[]>([]);
-
-  useEffect(() => {
-    locationRef.current = location;
-  }, [location]);
-
-  useEffect(() => {
-    scheduledShiftsRef.current = scheduledShifts;
-  }, [scheduledShifts]);
 
   const fetchAllData = useCallback(async (signal: AbortSignal) => {
     if (!locationSlug) {
@@ -186,10 +176,8 @@ const SchedulePage = () => {
       return;
     }
 
-    if (!locationRef.current) {
-      setLocationLoading(true);
-      setBaseMetaLoading(true);
-    }
+    setLocationLoading(true);
+    setBaseMetaLoading(true);
 
     try {
       const { data: locData, error: locError } = await supabase
@@ -230,7 +218,7 @@ const SchedulePage = () => {
     }
   }, [locationSlug]);
 
-  const runFetchAllData = useCallback(() => {
+  const runDataFetches = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
@@ -240,11 +228,11 @@ const SchedulePage = () => {
   }, [fetchAllData]);
 
   useEffect(() => {
-    runFetchAllData();
-
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN') {
-        runFetchAllData();
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        runDataFetches();
+      } else if (event === 'SIGNED_OUT') {
+        router.push('/login');
       }
     });
 
@@ -252,7 +240,7 @@ const SchedulePage = () => {
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };
-  }, [runFetchAllData]);
+  }, [runDataFetches, router]);
 
   useEffect(() => {
     if (!locationSlug) return;
@@ -301,10 +289,7 @@ const SchedulePage = () => {
         setShiftsDataLoading(false);
         return;
     }
-
-    if (scheduledShiftsRef.current.length === 0) {
-      setShiftsDataLoading(true);
-    }
+    setShiftsDataLoading(true);
     
     try {
       const firstDayOfWeekQuery = weekStart;
@@ -393,7 +378,7 @@ const SchedulePage = () => {
     finally { 
       if (!signal.aborted) setShiftsDataLoading(false); 
     }
-  }, [location, weekStart, allShiftTemplates, positions]);
+  }, [location, weekStart, allShiftTemplates, positions]); 
 
   const runFetchScheduledShifts = useCallback(() => {
     if (abortControllerRef.current) {

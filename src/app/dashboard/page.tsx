@@ -22,11 +22,6 @@ export default function Dashboard() {
   const currentWeek = new Date();
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const locationsRef = useRef<LocationCardData[]>([]);
-
-  useEffect(() => {
-    locationsRef.current = locations;
-  }, [locations]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -45,9 +40,7 @@ export default function Dashboard() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
-    if (locationsRef.current.length === 0) {
-      setLoading(true);
-    }
+    setLoading(true);
     setError(null);
 
     try {
@@ -116,10 +109,8 @@ export default function Dashboard() {
           ? Array.from(workersGroupedByLocation[location.id]).sort() 
           : [],
       }));
-      
-      if (!controller.signal.aborted) {
-        setLocations(locationData);
-      }
+
+      setLocations(locationData);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching location data:', err);
@@ -133,11 +124,13 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetchLocationData();
-
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_IN') {
+      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         await fetchLocationData();
+      } else if (event === 'SIGNED_OUT') {
+        setLocations([]);
+        setError(null);
+        router.push('/login');
       }
     });
 
@@ -145,7 +138,7 @@ export default function Dashboard() {
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };
-  }, [fetchLocationData]);
+  }, [fetchLocationData, router]);
 
   const handleViewSchedule = (locationName: string) => {
     router.push(`/schedule/${locationName}?week=${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')}`);
