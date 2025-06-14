@@ -81,6 +81,11 @@ export default function EmployeesPage() {
   const [allLocations, setAllLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const workersRef = useRef<DatabaseWorker[]>([]);
+
+  useEffect(() => {
+    workersRef.current = workers;
+  }, [workers]);
 
   const loadInitialData = useCallback(async () => {
     if (abortControllerRef.current) {
@@ -89,7 +94,9 @@ export default function EmployeesPage() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setLoading(true);
+    if (workersRef.current.length === 0) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [fetchedWorkers, locationsData] = await Promise.all([
@@ -98,12 +105,14 @@ export default function EmployeesPage() {
       ]);
 
       if (controller.signal.aborted) return;
-
-      setWorkers(fetchedWorkers);
-      setFilteredWorkers(fetchedWorkers);
-
+      
       if (locationsData.error) throw locationsData.error;
-      setAllLocations(locationsData.data || []);
+      
+      if (!controller.signal.aborted) {
+        setWorkers(fetchedWorkers);
+        setFilteredWorkers(fetchedWorkers);
+        setAllLocations(locationsData.data || []);
+      }
       
     } catch (err: any) {
       if (err.name !== 'AbortError') {

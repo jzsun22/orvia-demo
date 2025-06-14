@@ -22,6 +22,11 @@ export default function Dashboard() {
   const currentWeek = new Date();
   const [error, setError] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const locationsRef = useRef<LocationCardData[]>([]);
+
+  useEffect(() => {
+    locationsRef.current = locations;
+  }, [locations]);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -40,7 +45,9 @@ export default function Dashboard() {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
-    setLoading(true);
+    if (locationsRef.current.length === 0) {
+      setLoading(true);
+    }
     setError(null);
 
     try {
@@ -109,8 +116,10 @@ export default function Dashboard() {
           ? Array.from(workersGroupedByLocation[location.id]).sort() 
           : [],
       }));
-
-      setLocations(locationData);
+      
+      if (!controller.signal.aborted) {
+        setLocations(locationData);
+      }
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         console.error('Error fetching location data:', err);
