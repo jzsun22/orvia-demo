@@ -21,7 +21,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const currentWeek = new Date();
   const [error, setError] = useState<string | null>(null);
-  const isFetching = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -34,13 +34,19 @@ export default function Dashboard() {
   };
 
   const fetchLocationData = useCallback(async () => {
-    if (isFetching.current) return;
-    isFetching.current = true;
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     
     setLoading(true);
     setError(null);
+
     try {
       const allLocations = await fetchAllLocations(supabase);
+      if (controller.signal.aborted) return;
+
       if (!allLocations || allLocations.length === 0) {
         setLocations([]);
         setLoading(false);
@@ -60,7 +66,10 @@ export default function Dashboard() {
             workers!inner (id, first_name, last_name, preferred_name)
           )
         `)
-        .eq('shift_date', today);
+        .eq('shift_date', today)
+        .abortSignal(controller.signal);
+
+      if (controller.signal.aborted) return;
 
       if (shiftsError) {
         console.error("Error fetching today's scheduled shifts:", shiftsError);
@@ -103,19 +112,20 @@ export default function Dashboard() {
 
       setLocations(locationData);
     } catch (err: any) {
-      console.error('Error fetching location data:', err);
-      setError('Failed to load dashboard data.');
+      if (err.name !== 'AbortError') {
+        console.error('Error fetching location data:', err);
+        setError('Failed to load dashboard data.');
+      }
     } finally {
-      isFetching.current = false;
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
     fetchLocationData();
-  }, [fetchLocationData]);
 
-  useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         fetchLocationData();
@@ -124,7 +134,7 @@ export default function Dashboard() {
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+      if (event === 'SIGNED_IN') {
         await fetchLocationData();
       }
     });
@@ -132,6 +142,7 @@ export default function Dashboard() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
+      abortControllerRef.current?.abort();
     };
   }, [fetchLocationData]);
 

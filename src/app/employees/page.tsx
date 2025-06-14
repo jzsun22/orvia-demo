@@ -80,19 +80,24 @@ export default function EmployeesPage() {
   const [managerId, setManagerId] = useState<string | null>(null);
   const [allLocations, setAllLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
-  const isFetching = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadInitialData = useCallback(async () => {
-    if (isFetching.current) return;
-    isFetching.current = true;
-    
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setLoading(true);
     setError(null);
     try {
       const [fetchedWorkers, locationsData] = await Promise.all([
         fetchWorkers(supabase),
-        supabase.from('locations').select('id, name')
+        supabase.from('locations').select('id, name').abortSignal(controller.signal)
       ]);
+
+      if (controller.signal.aborted) return;
 
       setWorkers(fetchedWorkers);
       setFilteredWorkers(fetchedWorkers);
@@ -101,14 +106,19 @@ export default function EmployeesPage() {
       setAllLocations(locationsData.data || []);
       
     } catch (err: any) {
-      setError('Failed to load initial data. ' + err.message);
+      if (err.name !== 'AbortError') {
+        setError('Failed to load initial data. ' + err.message);
+      }
     } finally {
-      isFetching.current = false;
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, []);
 
   useEffect(() => {
+    loadInitialData();
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
         loadInitialData();
@@ -118,7 +128,7 @@ export default function EmployeesPage() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
+        if (event === 'SIGNED_IN') {
           await loadInitialData();
         }
 
@@ -143,6 +153,7 @@ export default function EmployeesPage() {
     return () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
+      abortControllerRef.current?.abort();
     };
   }, [loadInitialData]);
 
