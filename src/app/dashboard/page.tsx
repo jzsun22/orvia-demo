@@ -135,13 +135,6 @@ export default function Dashboard() {
   useEffect(() => {
     fetchLocationData();
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        fetchLocationData();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN') {
         await fetchLocationData();
@@ -149,7 +142,6 @@ export default function Dashboard() {
     });
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };

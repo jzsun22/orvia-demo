@@ -128,13 +128,6 @@ export default function EmployeesPage() {
   useEffect(() => {
     loadInitialData();
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        loadInitialData();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
         if (event === 'SIGNED_IN') {
@@ -160,7 +153,6 @@ export default function EmployeesPage() {
     });
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };

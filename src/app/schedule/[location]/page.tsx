@@ -242,14 +242,6 @@ const SchedulePage = () => {
   useEffect(() => {
     runFetchAllData();
 
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        runFetchAllData();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN') {
         runFetchAllData();
@@ -257,7 +249,6 @@ const SchedulePage = () => {
     });
 
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
       authListener.subscription.unsubscribe();
       abortControllerRef.current?.abort();
     };
