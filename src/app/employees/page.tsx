@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import useSWR from 'swr';
+import { supabase } from '@/lib/supabase/client';
 import { fetchWorkers } from '@/lib/supabase';
-import { supabase } from '@/lib/supabase/client'
 import { PlusCircle, Search, ChevronDown } from 'lucide-react';
 import { AddEmployeeModal } from '@/components/modals/AddEmployeeModal';
 import { EditEmployeeInfoModal } from '@/components/modals/EditEmployeeInfoModal';
@@ -23,6 +24,7 @@ import { JobLevel, Location } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import EmployeeTableSkeleton from '@/components/employees/EmployeeTableSkeleton';
 import { useRouter } from 'next/navigation';
+import type { Session } from '@supabase/supabase-js';
 
 interface DatabaseWorker {
   id: string;
@@ -68,106 +70,61 @@ interface Employee {
   birthday: string | null;
 }
 
+// A specific fetcher for the manager's worker ID, which depends on the user session.
+const managerIdFetcher = async (key: string, userId: string) => {
+  if (key !== 'managerId' || !userId) return null;
+  const { data, error } = await supabase.from('workers').select('id').eq('user_id', userId).single();
+  if (error) {
+    console.warn("Could not find a manager worker for the current user.");
+    return null;
+  }
+  return data?.id || null;
+};
+
 export default function EmployeesPage() {
   const router = useRouter();
-  const [workers, setWorkers] = useState<DatabaseWorker[]>([]);
-  const [filteredWorkers, setFilteredWorkers] = useState<DatabaseWorker[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEmployeeInfo, setEditingEmployeeInfo] = useState<Employee | null>(null);
   const [editingWorkSettings, setEditingWorkSettings] = useState<Employee | null>(null);
   const [editingAvailability, setEditingAvailability] = useState<DatabaseWorker | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [managerId, setManagerId] = useState<string | null>(null);
-  const [allLocations, setAllLocations] = useState<Location[]>([]);
   const [locationFilter, setLocationFilter] = useState<string[]>([]);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const workersRef = useRef<DatabaseWorker[]>([]);
+  
+  // SWR hooks for data fetching
+  const { data: workers, error: workersError, isLoading: isWorkersLoading, mutate: mutateWorkers } = useSWR<DatabaseWorker[]>('workers', () => fetchWorkers(supabase));
+  const { data: allLocations, error: locationsError, isLoading: isLocationsLoading } = useSWR<Location[]>('locations', async () => {
+    const { data, error } = await supabase.from('locations').select('id, name');
+    if (error) throw error;
+    return data;
+  });
+  const { data: managerId, error: managerError, isLoading: isManagerLoading } = useSWR(
+    session?.user ? ['managerId', session.user.id] : null,
+    ([key, userId]) => managerIdFetcher(key, userId)
+  );
+  
+  const loading = isWorkersLoading || isLocationsLoading || (session && isManagerLoading);
+  const error = workersError || locationsError || managerError;
 
   useEffect(() => {
-    workersRef.current = workers;
-  }, [workers]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const loadInitialData = async (session: any) => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [fetchedWorkers, locationsData, managerWorker] = await Promise.all([
-          fetchWorkers(supabase),
-          supabase.from('locations').select('id, name').abortSignal(controller.signal),
-          supabase.from('workers').select('id').eq('user_id', session.user.id).single()
-        ]);
-
-        if (controller.signal.aborted) return;
-        
-        if (locationsData.error) throw locationsData.error;
-        if (managerWorker.error) console.warn("Could not find a manager worker for the current user.");
-        
-        setWorkers(fetchedWorkers);
-        setFilteredWorkers(fetchedWorkers);
-        setAllLocations(locationsData.data || []);
-        if (managerWorker.data) {
-          setManagerId(managerWorker.data.id);
-        }
-        
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          setError('Failed to load initial data. ' + err.message);
-        }
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        if (session?.user) {
-            await loadInitialData(session);
-        } else {
-            setLoading(false);
-            setError("User not authenticated. Please log in.");
-        }
-      } else if (event === 'SIGNED_OUT') {
-          setWorkers([]);
-          setFilteredWorkers([]);
-          setAllLocations([]);
-          setManagerId(null);
-          setError(null);
-          router.push('/login');
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (_event === 'SIGNED_OUT') {
+        router.push('/login');
       }
     });
 
     return () => {
-      authListener.subscription.unsubscribe();
-      controller.abort();
+      authListener?.subscription.unsubscribe();
     };
   }, [router]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        window.location.reload();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
-
-  useEffect(() => {
+  const filteredWorkers = useMemo(() => {
+    if (!workers) return [];
+    
     let result = [...workers];
 
-    // Apply search filter
     if (searchQuery.trim()) {
       const lowercasedQuery = searchQuery.toLowerCase();
       result = result.filter((worker) => {
@@ -177,7 +134,6 @@ export default function EmployeesPage() {
       });
     }
 
-    // Apply location filter
     if (locationFilter.length > 0) {
       result = result.filter(worker => 
         worker.locations.some(loc => locationFilter.includes(loc.location.id))
@@ -194,7 +150,7 @@ export default function EmployeesPage() {
       return nameA.localeCompare(nameB);
     });
 
-    setFilteredWorkers(result);
+    return result;
   }, [searchQuery, workers, locationFilter, managerId]);
   
   const handleLocationFilterChange = (locationId: string) => {
@@ -229,8 +185,18 @@ export default function EmployeesPage() {
     setEditingAvailability(worker);
   };
 
+  const handleModalSuccess = () => {
+    setShowAddModal(false);
+    setEditingEmployeeInfo(null);
+    setEditingWorkSettings(null);
+    setEditingAvailability(null);
+    mutateWorkers(); // Revalidate the workers data
+  };
+
   if (error) {
-    return <div className="min-h-screen p-8 bg-[#f8f9f7] text-center text-red-500">{error}</div>;
+    return <div className="min-h-screen p-8 bg-[#f8f9f7] text-center text-red-500">
+      Failed to load data. Please try refreshing the page.
+    </div>;
   }
 
   return (
@@ -261,14 +227,14 @@ export default function EmployeesPage() {
           
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center justify-between whitespace-nowrap">
+              <Button variant="outline" className="flex items-center justify-between whitespace-nowrap" disabled={!allLocations}>
                 <div className="flex items-center">
                   <span className="text-muted-foreground mr-1">Location:</span>
                   <span>
                     {locationFilter.length === 0
                       ? 'All'
                       : locationFilter.length === 1
-                      ? formatLocationName(allLocations.find(loc => loc.id === locationFilter[0])?.name || '')
+                      ? formatLocationName(allLocations?.find(loc => loc.id === locationFilter[0])?.name || '')
                       : `${locationFilter.length} selected`}
                   </span>
                 </div>
@@ -278,7 +244,7 @@ export default function EmployeesPage() {
             <DropdownMenuContent className="w-56">
               <DropdownMenuLabel>Filter by Location</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {allLocations.map((location) => (
+              {allLocations?.map((location) => (
                 <DropdownMenuCheckboxItem
                   key={location.id}
                   checked={locationFilter.includes(location.id)}
@@ -362,10 +328,7 @@ export default function EmployeesPage() {
         <AddEmployeeModal
           isOpen={true}
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            setShowAddModal(false);
-            window.location.reload();
-          }}
+          onSuccess={handleModalSuccess}
         />
       )}
 
@@ -374,10 +337,7 @@ export default function EmployeesPage() {
           isOpen={true}
           employee={editingEmployeeInfo}
           onClose={() => setEditingEmployeeInfo(null)}
-          onSuccess={() => {
-            setEditingEmployeeInfo(null);
-            window.location.reload();
-          }}
+          onSuccess={handleModalSuccess}
         />
       )}
 
@@ -386,10 +346,7 @@ export default function EmployeesPage() {
           isOpen={true}
           employee={editingWorkSettings}
           onClose={() => setEditingWorkSettings(null)}
-          onSuccess={() => {
-            setEditingWorkSettings(null);
-            window.location.reload();
-          }}
+          onSuccess={handleModalSuccess}
         />
       )}
 
@@ -398,10 +355,7 @@ export default function EmployeesPage() {
           isOpen={true}
           employee={editingAvailability}
           onClose={() => setEditingAvailability(null)}
-          onSuccess={() => {
-            setEditingAvailability(null);
-            window.location.reload();
-          }}
+          onSuccess={handleModalSuccess}
         />
       )}
     </div>

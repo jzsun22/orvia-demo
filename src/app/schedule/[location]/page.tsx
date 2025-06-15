@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import useSWR, { useSWRConfig } from 'swr';
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { generateWeeklySchedule } from "@/lib/scheduling/scheduleGenerator";
@@ -113,18 +114,120 @@ interface ScheduledShiftForGrid {
   isTrainingAssignmentManuallyOverridden?: boolean | null;
 }
 
+interface SchedulePageData {
+  location: Location;
+  workers: Worker[];
+  allShiftTemplates: ShiftTemplate[];
+  positions: Position[];
+  scheduledShifts: ScheduledShiftForGrid[];
+}
+
+const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): Promise<SchedulePageData> => {
+  // 1. Fetch Location
+  const { data: location, error: locError } = await supabase
+    .from("locations")
+    .select("id, name")
+    .eq("name", locationSlug.toLowerCase().trim())
+    .single();
+  if (locError) throw new Error(locError.message);
+  if (!location) throw new Error("Location not found");
+
+  // 2. Fetch Base Meta (workers, templates, positions)
+  const [workersRes, templatesRes, positionsRes] = await Promise.all([
+    supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
+    supabase.from("shift_templates").select("*"),
+    supabase.from("positions").select("id, name"),
+  ]);
+  if (workersRes.error) throw new Error(workersRes.error.message);
+  if (templatesRes.error) throw new Error(templatesRes.error.message);
+  if (positionsRes.error) throw new Error(positionsRes.error.message);
+
+  const workers = workersRes.data;
+  const allShiftTemplates = templatesRes.data;
+  const positions = positionsRes.data;
+
+  // 3. Fetch scheduled shifts
+  const firstDayOfWeekQuery = weekStart;
+  const lastDayOfWeekQuery = new Date(firstDayOfWeekQuery.getTime());
+  lastDayOfWeekQuery.setUTCDate(lastDayOfWeekQuery.getUTCDate() + 6);
+  const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+  const startDateQueryStr = ptDateFormatter.format(firstDayOfWeekQuery);
+  const endDateQueryStr = ptDateFormatter.format(lastDayOfWeekQuery);
+
+  const { data: allShiftsForDateRange, error: shiftsError } = await supabase
+    .from("scheduled_shifts")
+    .select("id, shift_date, template_id, start_time, end_time, is_recurring_generated") 
+    .gte("shift_date", startDateQueryStr).lte("shift_date", endDateQueryStr);
+  if (shiftsError) throw new Error(shiftsError.message);
+  if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) {
+    return { location, workers, allShiftTemplates, positions, scheduledShifts: [] };
+  }
+  
+  const templateIdsForCurrentLocation = allShiftTemplates.filter(t => t.location_id === location.id).map(t => t.id);
+  const relevantScheduledShifts = allShiftsForDateRange.filter(s => 
+    s.template_id !== null && templateIdsForCurrentLocation.includes(s.template_id)
+  );
+  if (relevantScheduledShifts.length === 0) {
+    return { location, workers, allShiftTemplates, positions, scheduledShifts: [] };
+  }
+
+  const shiftIds = relevantScheduledShifts.map(s => s.id);
+  const { data: assignmentsWithWorkers, error: assignmentsError } = await supabase.from('shift_assignments')
+    .select(`scheduled_shift_id, worker_id, assignment_type, is_manual_override, assigned_start, assigned_end, workers (id, first_name, last_name, preferred_name, job_level)`)
+    .in('scheduled_shift_id', shiftIds);
+  if (assignmentsError) throw new Error(assignmentsError.message);
+  
+  const populatedShifts: ScheduledShiftForGrid[] = relevantScheduledShifts.map(shift => {
+    const shiftAssignments = assignmentsWithWorkers?.filter(a => a.scheduled_shift_id === shift.id) || [];
+    let primaryAssignment = shiftAssignments.find(a => a.assignment_type === 'lead') || shiftAssignments.find(a => a.assignment_type === 'regular');
+    let workerName, assignedWorkerId = null, assignedStartTime = null, assignedEndTime = null, isManualOverride = null, workerJobLevel = null;
+    if (primaryAssignment?.workers) {
+      const workerData = primaryAssignment.workers as any;
+      workerName = workerData.preferred_name?.trim() || workerData.first_name?.trim() || 'Unknown Worker';
+      assignedWorkerId = workerData.id; workerJobLevel = workerData.job_level || null;
+      assignedStartTime = primaryAssignment.assigned_start || null; assignedEndTime = primaryAssignment.assigned_end || null;
+      isManualOverride = primaryAssignment.is_manual_override ?? null;
+    }
+
+    const trainingAssignment = shiftAssignments.find(a => a.assignment_type === 'training');
+    let trainingWorkerId = null, trainingWorkerName, trainingWorkerAssignedStartTime = null, trainingWorkerAssignedEndTime = null, isTrainingAssignmentManuallyOverridden = null;
+    if (trainingAssignment?.workers) {
+      const traineeData = trainingAssignment.workers as any;
+      trainingWorkerName = traineeData.preferred_name?.trim() || traineeData.first_name?.trim() || 'Trainee';
+      trainingWorkerId = traineeData.id;
+      trainingWorkerAssignedStartTime = trainingAssignment.assigned_start || null; trainingWorkerAssignedEndTime = trainingAssignment.assigned_end || null;
+      isTrainingAssignmentManuallyOverridden = trainingAssignment.is_manual_override ?? null;
+    }
+
+    const template = allShiftTemplates.find(t => t.id === shift.template_id);
+    const position = template ? positions.find(p => p.id === template.position_id) : null;
+
+    return {
+      ...shift,
+      positionName: position ? position.name : 'N/A',
+      worker_id: assignedWorkerId, workerName: workerName || undefined, job_level: workerJobLevel,
+      assigned_start: assignedStartTime, assigned_end: assignedEndTime, is_manual_override: isManualOverride,
+      trainingWorkerId, trainingWorkerName: trainingWorkerName || undefined, 
+      trainingWorkerAssignedStart: trainingWorkerAssignedStartTime, trainingWorkerAssignedEnd: trainingWorkerAssignedEndTime, 
+      isTrainingAssignmentManuallyOverridden,
+    };
+  });
+
+  return { location, workers, allShiftTemplates, positions, scheduledShifts: populatedShifts };
+};
+
+
 const ButtonWrapper: React.FC<{
   isDisabled: boolean;
   showTooltip: boolean;
   tooltipText: string;
-  children: React.ReactElement; // Expect a single ReactElement child (the Button)
+  children: React.ReactElement; 
 }> = ({ isDisabled, showTooltip, tooltipText, children }) => {
   const spanContent = (
     <span
       className={isDisabled ? "inline-block cursor-not-allowed" : "inline-block"}
       tabIndex={showTooltip && isDisabled ? 0 : undefined}
     >
-      {/* Pass through style to the child button for pointer-events */} 
       {React.cloneElement(children, { style: { ...(children.props.style || {}), pointerEvents: isDisabled ? 'none' : 'auto' } })}
     </span>
   );
@@ -149,190 +252,27 @@ const SchedulePage = () => {
   const { showSuccessToast } = useAppToast();
   const locationSlug = params?.location as string;
 
-  const [location, setLocation] = useState<Location | null>(null);
-  const [workers, setWorkers] = useState<Worker[]>([]);
-  const [allShiftTemplates, setAllShiftTemplates] = useState<ShiftTemplate[]>([]); 
-  const [scheduledShifts, setScheduledShifts] = useState<ScheduledShiftForGrid[]>([]);
   const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartPT(new Date()));
-  const [positions, setPositions] = useState<Position[]>([]);
-
   const [editMode, setEditMode] = useState(false);
   const [selectedShiftModalContext, setSelectedShiftModalContext] = useState<ShiftClickContext | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPastWeek, setIsPastWeek] = useState(false);
-
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isContentLoading, setIsContentLoading] = useState(true);
   
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const { mutate } = useSWRConfig();
+  const { data, error, isLoading } = useSWR<SchedulePageData>(
+    locationSlug ? [locationSlug, weekStart] : null, 
+    () => schedulePageFetcher([locationSlug, weekStart])
+  );
 
   useEffect(() => {
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const signal = controller.signal;
-
-    const fetchAllData = async () => {
-      if (!locationSlug) {
-        setIsContentLoading(false);
-        setLocation(null);
-        return;
-      }
-      setIsContentLoading(true);
-      setScheduledShifts([]); // Clear old shifts immediately
-
-      try {
-        // 1. Fetch Location
-        const { data: locData, error: locError } = await supabase
-          .from("locations")
-          .select("id, name")
-          .eq("name", locationSlug.toLowerCase().trim())
-          .single();
-        
-        if (signal.aborted) return;
-        if (locError) throw locError;
-        setLocation(locData);
-
-        // 2. Fetch Base Meta (workers, templates, positions)
-        const [workersRes, templatesRes, positionsRes] = await Promise.all([
-          supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level").abortSignal(signal),
-          supabase.from("shift_templates").select("*").abortSignal(signal),
-          supabase.from("positions").select("id, name").abortSignal(signal),
-        ]);
-
-        if (signal.aborted) return;
-        if (workersRes.error) throw workersRes.error;
-        if (templatesRes.error) throw templatesRes.error;
-        if (positionsRes.error) throw positionsRes.error;
-
-        const currentWorkers = workersRes.data;
-        const currentTemplates = templatesRes.data;
-        const currentPositions = positionsRes.data;
-
-        setWorkers(currentWorkers);
-        setAllShiftTemplates(currentTemplates);
-        setPositions(currentPositions);
-        
-        // 3. Fetch scheduled shifts for the week
-        const firstDayOfWeekQuery = weekStart;
-        const lastDayOfWeekQuery = new Date(firstDayOfWeekQuery.getTime());
-        lastDayOfWeekQuery.setUTCDate(lastDayOfWeekQuery.getUTCDate() + 6);
-        const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
-        const startDateQueryStr = ptDateFormatter.format(firstDayOfWeekQuery);
-        const endDateQueryStr = ptDateFormatter.format(lastDayOfWeekQuery);
-
-        const { data: allShiftsForDateRange, error: shiftsError } = await supabase
-          .from("scheduled_shifts")
-          .select("id, shift_date, template_id, start_time, end_time, is_recurring_generated") 
-          .gte("shift_date", startDateQueryStr).lte("shift_date", endDateQueryStr)
-          .abortSignal(signal);
-
-        if (signal.aborted) return;
-        if (shiftsError) { 
-          console.error("Error fetching scheduled shifts for date range:", shiftsError.message); 
-          return; 
-        }
-        if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) { 
-          return; 
-        }
-        
-        const templateIdsForCurrentLocation = currentTemplates.filter(t => t.location_id === locData.id).map(t => t.id);
-        const relevantScheduledShifts = allShiftsForDateRange.filter(s => 
-          s.template_id !== null && templateIdsForCurrentLocation.includes(s.template_id)
-        );
-        if (relevantScheduledShifts.length === 0) { 
-          return; 
-        }
-
-        const shiftIds = relevantScheduledShifts.map(s => s.id);
-        const { data: assignmentsWithWorkers, error: assignmentsError } = await supabase.from('shift_assignments')
-          .select(`scheduled_shift_id, worker_id, assignment_type, is_manual_override, assigned_start, assigned_end, workers (id, first_name, last_name, preferred_name, job_level)`)
-          .in('scheduled_shift_id', shiftIds)
-          .abortSignal(signal);
-
-        if (signal.aborted) return;
-        if (assignmentsError) {
-          console.error("Error fetching shift assignments:", assignmentsError.message);
-          return;
-        }
-        
-        const populatedShifts: ScheduledShiftForGrid[] = relevantScheduledShifts.map(shift => {
-          const shiftAssignments = assignmentsWithWorkers?.filter(a => a.scheduled_shift_id === shift.id) || [];
-          let primaryAssignment = shiftAssignments.find(a => a.assignment_type === 'lead') || shiftAssignments.find(a => a.assignment_type === 'regular');
-          let workerName, assignedWorkerId = null, assignedStartTime = null, assignedEndTime = null, isManualOverride = null, workerJobLevel = null;
-          if (primaryAssignment?.workers) {
-            const workerData = primaryAssignment.workers as any;
-            workerName = workerData.preferred_name?.trim() || workerData.first_name?.trim() || 'Unknown Worker';
-            assignedWorkerId = workerData.id; workerJobLevel = workerData.job_level || null;
-            assignedStartTime = primaryAssignment.assigned_start || null; assignedEndTime = primaryAssignment.assigned_end || null;
-            isManualOverride = primaryAssignment.is_manual_override ?? null;
-          }
-
-          const trainingAssignment = shiftAssignments.find(a => a.assignment_type === 'training');
-          let trainingWorkerId = null, trainingWorkerName, trainingWorkerAssignedStartTime = null, trainingWorkerAssignedEndTime = null, isTrainingAssignmentManuallyOverridden = null;
-          if (trainingAssignment?.workers) {
-            const traineeData = trainingAssignment.workers as any;
-            trainingWorkerName = traineeData.preferred_name?.trim() || traineeData.first_name?.trim() || 'Trainee';
-            trainingWorkerId = traineeData.id;
-            trainingWorkerAssignedStartTime = trainingAssignment.assigned_start || null; trainingWorkerAssignedEndTime = trainingAssignment.assigned_end || null;
-            isTrainingAssignmentManuallyOverridden = trainingAssignment.is_manual_override ?? null;
-          }
-
-          const template = currentTemplates.find(t => t.id === shift.template_id);
-          const position = template ? currentPositions.find(p => p.id === template.position_id) : null;
-
-          return {
-            ...shift,
-            positionName: position ? position.name : 'N/A',
-            worker_id: assignedWorkerId, workerName: workerName || undefined, job_level: workerJobLevel,
-            assigned_start: assignedStartTime, assigned_end: assignedEndTime, is_manual_override: isManualOverride,
-            trainingWorkerId, trainingWorkerName: trainingWorkerName || undefined, 
-            trainingWorkerAssignedStart: trainingWorkerAssignedStartTime, trainingWorkerAssignedEnd: trainingWorkerAssignedEndTime, 
-            isTrainingAssignmentManuallyOverridden,
-          };
-        });
-
-        if (!signal.aborted) {
-          setScheduledShifts(populatedShifts);
-        }
-
-      } catch (e: any) {
-        if (e.name !== 'AbortError') {
-          console.error("Error fetching page data:", e);
-        }
-      } finally {
-        if (!signal.aborted) {
-          setIsContentLoading(false);
-        }
-      }
-    };
-
-    const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        fetchAllData();
-      } else if (event === 'SIGNED_OUT') {
+    const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') {
         router.push('/login');
       }
     });
-
-    return () => {
-      authListener.subscription.unsubscribe();
-      controller.abort();
-    };
-  }, [locationSlug, weekStart, router]);
-
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        window.location.reload();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+    return () => authListener.subscription.unsubscribe();
+  }, [router]);
 
   useEffect(() => {
     const weekParam = searchParams.get('week');
@@ -378,12 +318,10 @@ const SchedulePage = () => {
     const currentWS = weekStart;
     const prevWeekDate = new Date(currentWS.getTime());
     prevWeekDate.setUTCDate(prevWeekDate.getUTCDate() - 7);
-    
     const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { 
         timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' 
     });
     const formattedDate = ptDateFormatter.format(prevWeekDate);
-    
     if (locationSlug) {
         router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
     }
@@ -393,27 +331,23 @@ const SchedulePage = () => {
     const currentWS = weekStart;
     const nextWeekDate = new Date(currentWS.getTime());
     nextWeekDate.setUTCDate(nextWeekDate.getUTCDate() + 7);
-
     const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { 
         timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' 
     });
     const formattedDate = ptDateFormatter.format(nextWeekDate);
-
     if (locationSlug) {
         router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
     }
   };
 
   const handleGenerateSchedule = async () => {
-    if (!location) return;
+    if (!data?.location) return;
 
-    if (scheduledShifts.length > 0) {
+    if (data.scheduledShifts.length > 0) {
       const confirmation = window.confirm(
         "A schedule already exists for this week. Do you want to overwrite it?"
       );
-      if (!confirmation) {
-        return; 
-      }
+      if (!confirmation) return;
     }
 
     setIsGenerating(true);
@@ -422,30 +356,18 @@ const SchedulePage = () => {
       let managerWorkerId: string | undefined = undefined;
 
       if (user) {
-        const { data: workerData, error: workerError } = await supabase
-          .from('workers')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
-
-        if (workerError) {
-          console.warn("Could not find a worker for the current user. Proceeding without manager exclusion.", workerError.message);
-        } else if (workerData) {
-          managerWorkerId = workerData.id;
-        }
-      } else {
-        console.warn("No user is currently logged in. Proceeding without manager exclusion.");
+        const { data: workerData } = await supabase.from('workers').select('id').eq('user_id', user.id).single();
+        if (workerData) managerWorkerId = workerData.id;
       }
       
-      await generateWeeklySchedule(supabase, location.id, weekStart, managerWorkerId);
+      await generateWeeklySchedule(supabase, data.location.id, weekStart, managerWorkerId);
       
-      setWeekStart(new Date(weekStart.getTime())); 
+      mutate([locationSlug, weekStart]);
+      
       const formattedWeekStart = weekStart.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
+        year: 'numeric', month: 'long', day: 'numeric' 
       });
-      showSuccessToast(`Schedule for ${formatLocationName(location.name)} (week of ${formattedWeekStart}) generated successfully.`);
+      showSuccessToast(`Schedule for ${formatLocationName(data.location.name)} (week of ${formattedWeekStart}) generated successfully.`);
     } catch (error) {
       console.error("Error during schedule generation process:", error);
     } finally {
@@ -463,24 +385,33 @@ const SchedulePage = () => {
   };
 
   const handleModalClose = () => { setIsModalOpen(false); setSelectedShiftModalContext(null); };
+  
   const handleModalSaveSuccess = async () => { 
     setIsModalOpen(false); 
     setSelectedShiftModalContext(null); 
-    setWeekStart(new Date(weekStart.getTime())); 
+    mutate([locationSlug, weekStart]);
   };
 
-  const currentShiftTemplates = location ? allShiftTemplates.filter(t => t.location_id === location.id) : [];
+  const currentShiftTemplates = data ? data.allShiftTemplates.filter(t => t.location_id === data.location?.id) : [];
   
-  const editButtonDisabled = isPastWeek || isGenerating || !location || isContentLoading;
-  const generateButtonDisabled = isGenerating || editMode || isPastWeek || !location || isContentLoading;
+  const editButtonDisabled = isPastWeek || isGenerating || !data?.location || isLoading;
+  const generateButtonDisabled = isGenerating || editMode || isPastWeek || !data?.location || isLoading;
   
   const pastWeekTooltipContent = "Past schedules cannot be edited or regenerated.";
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <p className="text-xl text-destructive">Error: {error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-[1280px] mx-auto px-6 py-8">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-manrope font-bold text-primary">
-          {location && !isContentLoading ? formatLocationName(location.name) : (isContentLoading ? "Loading Location..." : "Location Not Found")}
+          {data?.location && !isLoading ? formatLocationName(data.location.name) : (isLoading ? "Loading Location..." : "Location Not Found")}
         </h1>
         <div className="flex items-center space-x-2">
           <ButtonWrapper isDisabled={editButtonDisabled} showTooltip={isPastWeek && editButtonDisabled} tooltipText={pastWeekTooltipContent}>
@@ -505,9 +436,9 @@ const SchedulePage = () => {
         <WeekNavigator weekStart={weekStart} onPrev={handlePrevWeek} onNext={handleNextWeek} />
       </div>
 
-      {isContentLoading ? (
+      {isLoading ? (
         <ScheduleGridSkeleton />
-      ) : !location ? (
+      ) : !data?.location ? (
         <div className="flex justify-center items-center h-64">
           <p className="text-xl text-destructive">Location "{formatLocationName(locationSlug || 'unknown')}" not found.</p>
         </div>
@@ -515,13 +446,13 @@ const SchedulePage = () => {
         <>
           <ScheduleGrid
             weekStart={weekStart}
-            scheduledShifts={scheduledShifts}
+            scheduledShifts={data.scheduledShifts}
             shiftTemplates={currentShiftTemplates} 
-            workers={workers}
-            positions={positions}
+            workers={data.workers}
+            positions={data.positions}
             editMode={editMode}
             onShiftClick={handleShiftClick}
-            locationId={location?.id}
+            locationId={data.location?.id}
           />
           {isModalOpen && selectedShiftModalContext && (
             <EditShiftModal

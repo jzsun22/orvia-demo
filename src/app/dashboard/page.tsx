@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
@@ -15,13 +16,75 @@ interface LocationCardData {
   workersToday?: string[];
 }
 
+const dashboardFetcher = async () => {
+  const allLocations = await fetchAllLocations(supabase);
+  if (!allLocations || allLocations.length === 0) {
+    return [];
+  }
+
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const { data: todaysScheduledData, error: shiftsError } = await supabase
+    .from('scheduled_shifts')
+    .select(`
+      shift_date,
+      shift_templates!inner (
+        location_id,
+        locations!inner (id, name)
+      ),
+      shift_assignments!inner (
+        workers!inner (id, first_name, last_name, preferred_name)
+      )
+    `)
+    .eq('shift_date', today);
+
+  if (shiftsError) {
+    console.error("Error fetching today's scheduled shifts:", shiftsError);
+    throw shiftsError;
+  }
+
+  const workersGroupedByLocation: Record<string, Set<string>> = {};
+
+  if (todaysScheduledData) {
+    todaysScheduledData.forEach((shift: any) => {
+      if (shift.shift_templates && shift.shift_templates.locations) {
+        const locationId = shift.shift_templates.locations.id;
+        if (!workersGroupedByLocation[locationId]) {
+          workersGroupedByLocation[locationId] = new Set();
+        }
+        if (Array.isArray(shift.shift_assignments)) {
+          shift.shift_assignments.forEach((assignment: any) => {
+            if (assignment.workers) {
+              const worker = assignment.workers;
+              const workerName =
+                worker.preferred_name ||
+                `${worker.first_name || ''} ${worker.last_name || ''}`.trim();
+              if (workerName) {
+                workersGroupedByLocation[locationId].add(workerName);
+              }
+            }
+          });
+        }
+      }
+    });
+  }
+  
+  const locationData: LocationCardData[] = allLocations.map((location) => ({
+    location_id: location.id,
+    location_name: location.name,
+    workersToday: workersGroupedByLocation[location.id] 
+      ? Array.from(workersGroupedByLocation[location.id]).sort() 
+      : [],
+  }));
+
+  return locationData;
+};
+
 export default function Dashboard() {
   const router = useRouter();
-  const [locations, setLocations] = useState<LocationCardData[]>([]);
-  const [loading, setLoading] = useState(true);
   const currentWeek = new Date();
-  const [error, setError] = useState<string | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // SWR hook for data fetching. It will automatically revalidate on focus.
+  const { data: locations, error, isLoading } = useSWR('dashboardData', dashboardFetcher);
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
@@ -34,135 +97,28 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-
-    const fetchLocationData = async () => {
-      setLoading(true);
-      setError(null);
-
-      try {
-        const allLocations = await fetchAllLocations(supabase);
-        if (controller.signal.aborted) return;
-
-        if (!allLocations || allLocations.length === 0) {
-          setLocations([]);
-          return;
-        }
-
-        const today = format(new Date(), 'yyyy-MM-dd');
-        const { data: todaysScheduledData, error: shiftsError } = await supabase
-          .from('scheduled_shifts')
-          .select(`
-            shift_date,
-            shift_templates!inner (
-              location_id,
-              locations!inner (id, name)
-            ),
-            shift_assignments!inner (
-              workers!inner (id, first_name, last_name, preferred_name)
-            )
-          `)
-          .eq('shift_date', today)
-          .abortSignal(controller.signal);
-
-        if (controller.signal.aborted) return;
-
-        if (shiftsError) {
-          console.error("Error fetching today's scheduled shifts:", shiftsError);
-          throw shiftsError;
-        }
-
-        const workersGroupedByLocation: Record<string, Set<string>> = {};
-
-        if (todaysScheduledData) {
-          todaysScheduledData.forEach((shift: any) => {
-            if (shift.shift_templates && shift.shift_templates.locations) {
-              const locationId = shift.shift_templates.locations.id;
-              if (!workersGroupedByLocation[locationId]) {
-                workersGroupedByLocation[locationId] = new Set();
-              }
-              if (Array.isArray(shift.shift_assignments)) {
-                shift.shift_assignments.forEach((assignment: any) => {
-                  if (assignment.workers) {
-                    const worker = assignment.workers;
-                    const workerName =
-                      worker.preferred_name ||
-                      `${worker.first_name || ''} ${worker.last_name || ''}`.trim();
-                    if (workerName) {
-                      workersGroupedByLocation[locationId].add(workerName);
-                    }
-                  }
-                });
-              }
-            }
-          });
-        }
-        
-        const locationData: LocationCardData[] = allLocations.map((location) => ({
-          location_id: location.id,
-          location_name: location.name,
-          workersToday: workersGroupedByLocation[location.id] 
-            ? Array.from(workersGroupedByLocation[location.id]).sort() 
-            : [],
-        }));
-
-        setLocations(locationData);
-      } catch (err: any) {
-        if (err.name !== 'AbortError') {
-          console.error('Error fetching location data:', err);
-          setError('Failed to load dashboard data.');
-        }
-      } finally {
-        // Always set loading to false, even if the fetch was aborted.
-        setLoading(false);
-      }
-    };
-    
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
-        await fetchLocationData();
-      } else if (event === 'SIGNED_OUT') {
-        setLocations([]);
-        setError(null);
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event) => {
+      if (event === 'SIGNED_OUT') {
         router.push('/login');
       }
     });
 
     return () => {
       authListener.subscription.unsubscribe();
-      controller.abort();
     };
   }, [router]);
 
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        window.location.reload();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
 
   const handleViewSchedule = (locationName: string) => {
     router.push(`/schedule/${locationName}?week=${format(startOfWeek(currentWeek, { weekStartsOn: 1 }), 'yyyy-MM-dd')}`);
   };
-
-  if (loading) {
-    return <DashboardSkeleton />;
-  }
 
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="max-w-2xl w-full p-8 bg-card rounded-lg shadow-md">
           <h1 className="text-2xl font-bold mb-4 text-red-600">Error Loading Dashboard</h1>
-          <p>{error}</p>
+          <p>There was an issue fetching the dashboard data. Please try again later.</p>
         </div>
       </div>
     );
@@ -186,7 +142,9 @@ export default function Dashboard() {
             </span>
         </div>
 
-        {locations.length === 0 ? (
+        {isLoading ? (
+          <DashboardSkeleton />
+        ) : !locations || locations.length === 0 ? (
           <div className="text-center py-10 text-muted-foreground">
             No locations found.
           </div>
