@@ -1,5 +1,25 @@
 # 🟢 Changelog — Orvia
 
+## [1.0.2] — 2025-06-14
+
+### ✅ Implemented
+- UI improvement: skeleton loading
+- Data fetching logic improvement: swr library
+- Employee personal data: refactored into 3 sections 
+- *bug fix*: 404 redirect after authentication
+
+### 🔧 In progress
+- Informative dashboard
+    - Current date
+    - Week range display
+    - Workers on shift today
+
+### 📋 TODO
+- Soft delete/database cleanup script
+- Better employee page layout
+
+---
+
 ## [1.0.1] — 2025-05-30
 
 ### ✅ Implemented
