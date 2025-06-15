@@ -162,7 +162,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-md bg-[#f8f9f7]">
         <DialogHeader>
-          <DialogTitle className="text-xl font-manrope font-semibold">Edit Work Settings</DialogTitle>
+          <DialogTitle className="text-xl font-manrope font-semibold">Edit Work Settings for {employee.first_name} {employee.last_name}</DialogTitle>
         </DialogHeader>
         {error && <p className="text-sm text-red-500 text-center mb-4">{error}</p>}
         {loading && !error && <p className="text-sm text-muted-foreground text-center mb-4">Loading data...</p>}
