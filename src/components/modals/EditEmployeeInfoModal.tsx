@@ -116,9 +116,13 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
   };
 
   const handleDeleteClick = () => {
-    setShowDeleteDialog(true);
+    // For demo purposes, we skip the confirmation dialog and show a toast directly.
+    showSuccessToast('Employee deletion is disabled here to keep the demo functional for everyone. Gotta keep the place intact :)');
+    // Original implementation:
+    // setShowDeleteDialog(true);
   };
 
+  /*
   const handleDeleteConfirm = async () => {
     try {
       setLoading(true);
@@ -148,6 +152,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
       setShowDeleteDialog(false);
     }
   };
+  */
 
   const handleClose = () => {
     reset();
@@ -305,6 +310,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
         </DialogContent>
       </Dialog>
 
+      {/*
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -323,6 +329,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      */}
     </>
   );
 } 
