@@ -104,12 +104,12 @@ export function SidebarNav() {
       <div className="mb-8 flex items-center space-x-0 px-1"> {/* Adjusted mb, space-x, px */}
         <Image
           src="/rose_logo.png"
-          alt="Silken Bloom Logo"
+          alt="Rosette & Co. Logo"
           width={64}
           height={64}
           className="h-16 w-16"
         />
-        <h1 className="text-xl font-semibold text-[#0d5442]">Silken Bloom</h1> {/* Adjusted text size */}
+        <h1 className="text-xl font-semibold text-[#0d5442]">Rosette & Co.</h1> {/* Adjusted text size */}
       </div>
 
       {/* Navigation Links */}
