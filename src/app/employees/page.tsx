@@ -89,62 +89,50 @@ export default function EmployeesPage() {
     workersRef.current = workers;
   }, [workers]);
 
-  const loadInitialData = useCallback(async () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
+  useEffect(() => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    setLoading(true);
-    setError(null);
-    try {
-      const [fetchedWorkers, locationsData] = await Promise.all([
-        fetchWorkers(supabase),
-        supabase.from('locations').select('id, name').abortSignal(controller.signal)
-      ]);
+    const loadInitialData = async (session: any) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [fetchedWorkers, locationsData, managerWorker] = await Promise.all([
+          fetchWorkers(supabase),
+          supabase.from('locations').select('id, name').abortSignal(controller.signal),
+          supabase.from('workers').select('id').eq('user_id', session.user.id).single()
+        ]);
 
-      if (controller.signal.aborted) return;
-      if (locationsData.error) throw locationsData.error;
-      
-      if (!controller.signal.aborted) {
+        if (controller.signal.aborted) return;
+        
+        if (locationsData.error) throw locationsData.error;
+        if (managerWorker.error) console.warn("Could not find a manager worker for the current user.");
+        
         setWorkers(fetchedWorkers);
         setFilteredWorkers(fetchedWorkers);
         setAllLocations(locationsData.data || []);
+        if (managerWorker.data) {
+          setManagerId(managerWorker.data.id);
+        }
+        
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setError('Failed to load initial data. ' + err.message);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
-      
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setError('Failed to load initial data. ' + err.message);
-      }
-    } finally {
-      if (!controller.signal.aborted) {
-        setLoading(false);
-      }
-    }
-  }, []);
+    };
 
-  useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'INITIAL_SESSION' || event === 'SIGNED_IN') {
         if (session?.user) {
-            await loadInitialData();
-            const { data: managerWorker } = await supabase
-              .from('workers')
-              .select('id')
-              .eq('user_id', session.user.id)
-              .single();
-
-            if (managerWorker) {
-              setManagerId(managerWorker.id);
-            }
+            await loadInitialData(session);
         } else {
-            // No session, redirect or show error
             setLoading(false);
             setError("User not authenticated. Please log in.");
-            setWorkers([]);
-            setFilteredWorkers([]);
-            setManagerId(null);
         }
       } else if (event === 'SIGNED_OUT') {
           setWorkers([]);
@@ -158,9 +146,23 @@ export default function EmployeesPage() {
 
     return () => {
       authListener.subscription.unsubscribe();
-      abortControllerRef.current?.abort();
+      controller.abort();
     };
-  }, [loadInitialData, router]);
+  }, [router]);
+
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        window.location.reload();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   useEffect(() => {
     let result = [...workers];
@@ -362,7 +364,7 @@ export default function EmployeesPage() {
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);
-            loadInitialData();
+            window.location.reload();
           }}
         />
       )}
@@ -374,7 +376,7 @@ export default function EmployeesPage() {
           onClose={() => setEditingEmployeeInfo(null)}
           onSuccess={() => {
             setEditingEmployeeInfo(null);
-            loadInitialData();
+            window.location.reload();
           }}
         />
       )}
@@ -386,7 +388,7 @@ export default function EmployeesPage() {
           onClose={() => setEditingWorkSettings(null)}
           onSuccess={() => {
             setEditingWorkSettings(null);
-            loadInitialData();
+            window.location.reload();
           }}
         />
       )}
@@ -398,7 +400,7 @@ export default function EmployeesPage() {
           onClose={() => setEditingAvailability(null)}
           onSuccess={() => {
             setEditingAvailability(null);
-            loadInitialData();
+            window.location.reload();
           }}
         />
       )}
