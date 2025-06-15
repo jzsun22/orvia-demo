@@ -265,17 +265,16 @@ export default function EmployeesPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                    <th scope="col" className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Level</th>
-                    <th scope="col" className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Positions</th>
-                    <th scope="col" className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locations</th>
-                    <th scope="col" className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th scope="col" className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                    <th scope="col" className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                    <th scope="col" className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Locations</th>
+                    <th scope="col" className="py-3 px-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredWorkers.map((worker) => (
                     <tr key={worker.id}>
-                      <td className="py-3 px-4 whitespace-nowrap">
+                      <td className="py-3 px-2 whitespace-nowrap text-sm">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{formatWorkerName(worker.first_name, worker.last_name, worker.preferred_name)}</span>
                           {worker.inactive && (
@@ -285,12 +284,11 @@ export default function EmployeesPage() {
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-4">{worker.job_level}</td>
-                      <td className="py-3 px-4">{worker.positions.map(p => p.position.name).join(', ')}</td>
-                      <td className="py-3 px-4">
+                      <td className="py-3 px-2 text-sm">{`${worker.job_level} - ${worker.positions.map(p => p.position.name).join(', ')}`}</td>
+                      <td className="py-3 px-2 text-sm">
                         {worker.locations.map(l => formatLocationName(l.location.name)).join(', ')}
                       </td>
-                      <td className="py-3 px-4 text-sm">
+                      <td className="py-3 px-2 text-sm">
                         <div className="flex gap-2">
                           <Button
                             onClick={() => handleEditInfoClick(worker)}
