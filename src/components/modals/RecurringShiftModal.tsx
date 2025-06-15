@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
-import { fetchAllLocations } from '@/lib/supabase';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Location } from '@/lib/types';
@@ -109,25 +108,39 @@ export function RecurringShiftModal({
     
     const loadInitialData = async () => {
       try {
-        // Fetch locations first
-        const fetchedLocations = await fetchAllLocations(supabase);
-        setLocations(fetchedLocations);
-        console.log('Loaded locations:', fetchedLocations);
+        // Fetch worker-specific locations
+        const { data: workerLocationsData, error: workerLocationsError } = await supabase
+          .from('worker_locations')
+          .select('location:locations!inner(*)')
+          .eq('worker_id', employeeId);
 
-        // First load all positions
-        const { data: positionsData, error: positionsError } = await supabase
-          .from('positions')
-          .select('id, name')
-          .order('name');
-
-        if (positionsError) throw positionsError;
+        if (workerLocationsError) throw workerLocationsError;
         
-        if (!positionsData) {
-          throw new Error('No positions data received');
+        const fetchedLocations = workerLocationsData.map(wl => wl.location).filter(Boolean) as Location[];
+        setLocations(fetchedLocations);
+        console.log('Loaded worker-specific locations:', fetchedLocations);
+
+        // Pre-fill location if there's only one
+        if (fetchedLocations.length === 1) {
+          setLocationId(fetchedLocations[0].id);
         }
 
-        console.log('Loaded all positions:', positionsData);
-        setAllPositions(positionsData);
+        // Fetch worker-specific positions
+        const { data: workerPositionsData, error: workerPositionsError } = await supabase
+          .from('worker_positions')
+          .select('position:positions!inner(id, name)')
+          .eq('worker_id', employeeId);
+
+        if (workerPositionsError) throw workerPositionsError;
+
+        const workerPositions = workerPositionsData.map(wp => wp.position).filter(Boolean);
+        
+        if (!workerPositions) {
+          throw new Error('No positions data received for this worker');
+        }
+
+        console.log('Loaded worker-specific positions:', workerPositions);
+        setAllPositions(workerPositions as { id: string; name: string }[]);
 
         // For edit mode, always fetch fresh data from recurring_shift_assignments
         if (isEditing && shift?.id) {
@@ -153,7 +166,7 @@ export function RecurringShiftModal({
           console.log('Loaded shift data with position:', shiftData);
 
           // Set initial form state from shiftData
-          const matchingLocation = fetchedLocations.find(loc => loc.name === shiftData.location_name);
+          const matchingLocation = (fetchedLocations as Location[]).find(loc => loc.name === shiftData.location_name);
           setDayOfWeek(capitalizeDay(shiftData.day_of_week));
           setLocationId(matchingLocation?.id || ''); // Set ID, fallback to empty
           setPositionId(shiftData.position_id);
@@ -216,17 +229,7 @@ export function RecurringShiftModal({
     }
   }, [startTime, filteredShiftTemplates]);
 
-  // Update filtered positions when location changes (for both new and edit modes)
-  useEffect(() => {
-    if (locationId) {
-      console.log('Location changed, fetching positions for:', locationId);
-      fetchPositionsForLocation(locationId);
-    } else {
-      setFilteredPositions([]);
-    }
-  }, [locationId]);
-
-  const fetchPositionsForLocation = async (locationId: string) => {
+  const fetchPositionsForLocation = useCallback(async (locationId: string) => {
     try {
       console.log('Fetching positions for location ID:', locationId);
       const { data: locationPositions, error: locationPositionsError } = await supabase
@@ -249,7 +252,17 @@ export function RecurringShiftModal({
       console.error('Error fetching positions for location:', err);
       setError(err.message);
     }
-  };
+  }, [allPositions]);
+
+  // Update filtered positions when location changes (for both new and edit modes)
+  useEffect(() => {
+    if (locationId) {
+      console.log('Location changed, fetching positions for:', locationId);
+      fetchPositionsForLocation(locationId);
+    } else {
+      setFilteredPositions([]);
+    }
+  }, [locationId, fetchPositionsForLocation]);
 
   const fetchAllShiftTemplates = async () => {
     try {
