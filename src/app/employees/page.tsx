@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase/client';
 import { fetchWorkers } from '@/lib/supabase';
-import { PlusCircle, Search, ChevronDown } from 'lucide-react';
+import { PlusCircle, Search, ChevronDown, User, Briefcase, Contact, Calendar } from 'lucide-react';
 import { AddEmployeeModal } from '@/components/modals/AddEmployeeModal';
 import { EditEmployeeInfoModal } from '@/components/modals/EditEmployeeInfoModal';
 import { EditWorkSettingsModal } from '@/components/modals/EditWorkSettingsModal';
@@ -15,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
@@ -203,7 +204,14 @@ export default function EmployeesPage() {
     <div className="min-h-screen p-8 bg-[#f8f9f7]">
       <div className="max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold">Employees</h1>
+          <div className="flex items-baseline gap-3">
+            <h1 className="text-3xl font-bold">Employees</h1>
+            {!loading && (
+              <span className="text-gray-500">
+                ({filteredWorkers.length} shown)
+              </span>
+            )}
+          </div>
           <button
             onClick={() => setShowAddModal(true)}
             className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-[#0d5442] rounded-md hover:bg-[#0d5442]/90 transition-colors"
@@ -290,25 +298,32 @@ export default function EmployeesPage() {
                       </td>
                       <td className="py-3 px-2 text-sm">
                         <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleEditInfoClick(worker)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Edit Info
-                          </Button>
-                          <Button
-                            onClick={() => handleWorkSettingsClick(worker)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Edit Settings
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                                <User className="h-4 w-4" />
+                                Edit
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start">
+                              <DropdownMenuItem onClick={() => handleEditInfoClick(worker)} className="flex items-center gap-2 cursor-pointer">
+                                <Contact className="h-4 w-4" />
+                                Personal Info
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleWorkSettingsClick(worker)} className="flex items-center gap-2 cursor-pointer">
+                                <Briefcase className="h-4 w-4" />
+                                Job Details
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+
                           <Button
                             onClick={() => handleAvailabilityClick(worker)}
                             variant="outline"
                             size="sm"
+                            className="flex items-center gap-2"
                           >
+                            <Calendar className="h-4 w-4" />
                             Set Availability
                           </Button>
                         </div>
