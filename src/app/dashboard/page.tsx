@@ -55,9 +55,7 @@ const dashboardFetcher = async () => {
           shift.shift_assignments.forEach((assignment: any) => {
             if (assignment.workers) {
               const worker = assignment.workers;
-              const workerName =
-                worker.preferred_name ||
-                `${worker.first_name || ''} ${worker.last_name || ''}`.trim();
+              const workerName = worker.preferred_name || worker.first_name;
               if (workerName) {
                 workersGroupedByLocation[locationId].add(workerName);
               }
