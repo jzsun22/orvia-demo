@@ -3,7 +3,8 @@ import {
     ScheduledShift,
     ShiftAssignment,
     Worker,
-    DayOfWeek 
+    DayOfWeek,
+    RecurringShiftAssignment 
 } from '@/lib/types';
 import { 
     formatDateToYYYYMMDD, 
@@ -29,6 +30,12 @@ export class ScheduleGenerationState {
     // Stores existing shifts for workers from OTHER locations for conflict checking
     private existingCrossLocationShifts: ScheduledShift[];
 
+    // NEW: Stores ALL recurring assignments for workers to check for cross-location conflicts
+    private readonly allRecurringAssignments: RecurringShiftAssignment[];
+
+    // NEW: The location ID for the current generation process
+    private readonly currentLocationId?: string;
+
     // Map to track if opening/closing leads are assigned per day
     // Format: "YYYY-MM-DD" -> { opening: boolean, closing: boolean }
     private leadSlotsFilledByDay: Map<string, { opening: boolean; closing: boolean }>;
@@ -42,8 +49,16 @@ export class ScheduleGenerationState {
      * @param initialTemplates The list of all ShiftTemplate requirements for the week/location.
      * @param allWorkers The list of all potentially relevant workers to initialize the hours map.
      * @param allWorkerShiftsForWeek OPTIONAL: Pre-fetched shifts for allWorkers across all locations for the current week.
+     * @param allRecurringAssignments OPTIONAL: All recurring assignments for the workers, used for cross-location conflict checks.
+     * @param locationId The ID of the location being generated, required for recurring assignment conflict checks.
      */
-    constructor(initialTemplates: ShiftTemplate[], allWorkers: Worker[], allWorkerShiftsForWeek?: ScheduledShift[]) {
+    constructor(
+        initialTemplates: ShiftTemplate[], 
+        allWorkers: Worker[], 
+        allWorkerShiftsForWeek?: ScheduledShift[],
+        allRecurringAssignments?: RecurringShiftAssignment[],
+        locationId?: string
+    ) {
         this.scheduledShifts = [];
         this.shiftAssignments = [];
         this.filledTemplateSlots = new Set<string>(); // DEPRECATED
@@ -51,6 +66,8 @@ export class ScheduleGenerationState {
         this.assignedWorkerDays = new Set<string>(); 
         this.leadSlotsFilledByDay = new Map(); // Initialize lead tracker
         this.existingCrossLocationShifts = allWorkerShiftsForWeek ? [...allWorkerShiftsForWeek] : []; // Store pre-fetched shifts
+        this.allRecurringAssignments = allRecurringAssignments ? [...allRecurringAssignments] : []; // Store all recurring assignments
+        this.currentLocationId = locationId; // Store current location ID
         
         // Store initial templates and create lookup map
         this.initialTemplates = [...initialTemplates]; // Store a copy
@@ -200,6 +217,23 @@ export class ScheduleGenerationState {
                 return true; 
             }
         }
+
+        // --- NEW: Check for conflicts with recurring assignments at OTHER locations ---
+        if (this.allRecurringAssignments.length > 0 && this.currentLocationId) {
+            const dayOfWeek = getDayOfWeekStringFromDate(date);
+            for (const recurring of this.allRecurringAssignments) {
+                // Check if a recurring assignment exists for this worker on this day of the week at a DIFFERENT location
+                if (
+                    recurring.worker_id === workerId &&
+                    recurring.day_of_week === dayOfWeek &&
+                    recurring.location_id !== this.currentLocationId
+                ) {
+                    // This worker has a recurring commitment at another location on this day.
+                    return true;
+                }
+            }
+        }
+        
         return false;
     }
 

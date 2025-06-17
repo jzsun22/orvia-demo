@@ -262,7 +262,7 @@ export async function fetchWorkerShiftsForWeek(
     client: SupabaseClient,
     workerIds: string[],
     weekStartDate: Date
-): Promise<ScheduledShift[]> {
+): Promise<(ScheduledShift & { shift_assignments: ShiftAssignment[] })[]> {
     if (workerIds.length === 0) {
         return [];
     }
@@ -272,7 +272,7 @@ export async function fetchWorkerShiftsForWeek(
 
     const { data, error } = await client
         .from('scheduled_shifts')
-        .select('*')
+        .select('*, shift_assignments(*)')
         .in('worker_id', workerIds)
         .gte('shift_date', startDateStr)
         .lte('shift_date', endDateStr);
@@ -281,6 +281,6 @@ export async function fetchWorkerShiftsForWeek(
         console.error('Error fetching worker shifts for week:', error);
         throw new Error(`Failed to fetch worker shifts for week: ${error.message}`);
     }
-    return data || [];
+    return (data as any) || [];
 }
 

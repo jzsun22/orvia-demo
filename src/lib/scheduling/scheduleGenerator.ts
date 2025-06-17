@@ -91,8 +91,29 @@ export async function generateWeeklySchedule(
 
         // Fetch all shifts for active workers for the given week across ALL locations
         const activeWorkerIds = activeWorkers.map(w => w.id);
-        const allWorkerShiftsForWeek = await fetchWorkerShiftsForWeek(client, activeWorkerIds, startDate);
+        const allWorkerShiftsForWeek: (ScheduledShift & { shift_assignments: ShiftAssignment[] })[] = await fetchWorkerShiftsForWeek(client, activeWorkerIds, startDate);
         console.log(`[ScheduleGenerator] Fetched ${allWorkerShiftsForWeek.length} existing shifts for active workers across all locations for the week.`);
+
+        // CRITICAL FIX: Filter out shifts from the location currently being generated.
+        // This ensures that when re-generating, old shifts for this location don't count as conflicts,
+        // but shifts at OTHER locations are still respected to prevent double-booking.
+        const crossLocationShifts = allWorkerShiftsForWeek.filter(shift => {
+            // The actual location is on the template, let's find it.
+            const template = templates.find(t => t.id === shift.template_id);
+            return template?.location_id !== locationId;
+        });
+        console.log(`[ScheduleGenerator] After filtering, ${crossLocationShifts.length} shifts from other locations remain for conflict checking.`);
+
+        // --- NEW: Fetch ALL recurring assignments for these workers to check for cross-location conflicts ---
+        const { data: allRecurringAssignments, error: recurringError } = await client
+            .from('recurring_shift_assignments')
+            .select('*')
+            .in('worker_id', activeWorkerIds);
+        
+        if (recurringError) {
+            throw new Error(`Failed to fetch all recurring assignments for workers: ${recurringError.message}`);
+        }
+        console.log(`[ScheduleGenerator] Fetched ${allRecurringAssignments.length} recurring assignments for active workers across all locations.`);
 
         // Basic data validation
         if (!activeWorkers || activeWorkers.length === 0) {
@@ -108,7 +129,7 @@ export async function generateWeeklySchedule(
             // Decide if this is critical enough to stop
         }
 
-        const state = new ScheduleGenerationState(templates, activeWorkers, allWorkerShiftsForWeek); // Pass allWorkerShiftsForWeek
+        const state = new ScheduleGenerationState(templates, activeWorkers, crossLocationShifts, allRecurringAssignments, locationId); // Pass all recurring assignments and locationId
         console.log("Data fetched, starting assignment phases...");
 
         // --- 2. Process Recurring Assignments ---
