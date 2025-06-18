@@ -18,6 +18,7 @@ tsconfig.tsbuildinfo
 # User specific documents
 Proposed Modules & Implementation Plan.txt 
 project-structure-no-hidden.md
+color-palette.md
 
 # Supabase CLI generated folders
 supabase/.branches/
