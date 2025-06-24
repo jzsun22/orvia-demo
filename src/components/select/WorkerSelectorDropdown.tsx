@@ -9,7 +9,6 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
@@ -83,7 +82,6 @@ export function WorkerSelectorDropdown({
 
     if (scheduledShiftId && scheduledShiftId.startsWith('new-shift-') && newShiftClientContext) {
       // Case: New shift, temporary ID and full context are provided
-      console.log('[WorkerSelectorDropdown useEffect] Condition: NEW shift. ID:', scheduledShiftId, 'Context:', newShiftClientContext);
       shouldFetch = !disabled;
       apiRequestBody = {
         scheduledShiftId, // Pass the temporary "new-shift-..." ID
@@ -93,7 +91,6 @@ export function WorkerSelectorDropdown({
       };
     } else if (scheduledShiftId && !scheduledShiftId.startsWith('new-shift-')) {
       // Case: Existing shift, ID is a UUID
-      // console.log('[WorkerSelectorDropdown useEffect] Condition: EXISTING shift. ID:', scheduledShiftId);
       shouldFetch = !disabled;
       apiRequestBody = {
         scheduledShiftId, // Pass the UUID
@@ -102,7 +99,6 @@ export function WorkerSelectorDropdown({
       };
     } else {
       // Conditions not met to fetch (e.g., scheduledShiftId is null, or it's a new-shift- ID without context)
-      console.log('[WorkerSelectorDropdown useEffect] Condition: NOT FETCHING. ID:', scheduledShiftId, 'Disabled:', disabled, 'HasContext:', !!newShiftClientContext);
       setEligibleWorkers([]);
       setIsLoading(false); // Ensure loading is false if not fetching
       setError(null);      // Clear any previous error
@@ -110,7 +106,6 @@ export function WorkerSelectorDropdown({
     }
 
     if (!shouldFetch) {
-      console.log('[WorkerSelectorDropdown useEffect] shouldFetch is false, clearing workers and returning.');
       setEligibleWorkers([]);
       setIsLoading(false);
       setError(null);
@@ -122,7 +117,6 @@ export function WorkerSelectorDropdown({
 
       setIsLoading(true);
       setError(null);
-      // console.log('[WorkerSelectorDropdown useEffect] Fetching eligible workers with body:', JSON.stringify(apiRequestBody));
       try {
         const response = await fetch(`/api/get-eligible-workers`, {
           method: 'POST',
@@ -148,7 +142,6 @@ export function WorkerSelectorDropdown({
   }, [scheduledShiftId, newShiftClientContext, targetAssignmentType, disabled, excludeWorkerId])
 
   const handleSelect = (selectedWorkerId: string | null) => {
-    console.log('[WorkerSelectorDropdown] handleSelect called with workerId:', selectedWorkerId);
     if (!selectedWorkerId || selectedWorkerId === "__unassign__") {
       onWorkerSelect(null);
     } else {
@@ -202,7 +195,6 @@ export function WorkerSelectorDropdown({
   return (
     <>
       <Popover open={open} onOpenChange={(newOpenState) => {
-        // console.log('[WorkerSelectorDropdown] Popover onOpenChange. New open state:', newOpenState);
         setOpen(newOpenState);
       }}>
         <PopoverTrigger asChild>
@@ -224,15 +216,12 @@ export function WorkerSelectorDropdown({
             align="start"
             style={{ pointerEvents: 'auto' } as React.CSSProperties}
             onCloseAutoFocus={(e) => {
-              // console.log('[WorkerSelectorDropdown] PopoverContent onCloseAutoFocus');
               e.preventDefault();
             }}
             onFocusOutside={(e: any) => {
-              // console.log('[WorkerSelectorDropdown] PopoverContent onFocusOutside. RelatedTarget:', e.relatedTarget);
               e.preventDefault();
             }}
             onPointerDownOutside={(e) => {
-              // console.log('[WorkerSelectorDropdown] PopoverContent onPointerDownOutside. Target:', e.target);
               e.preventDefault();
             }}
           >
@@ -246,7 +235,6 @@ export function WorkerSelectorDropdown({
                     key="unassign-option"
                     value="__unassign__" 
                     onSelect={() => {
-                      console.log('[WorkerSelectorDropdown] Unassign CommandItem onSelect');
                       handleSelect(null);
                     }}
                   >
@@ -263,7 +251,6 @@ export function WorkerSelectorDropdown({
                       key={worker.id}
                       value={worker.id} 
                       onSelect={() => {
-                        console.log('[WorkerSelectorDropdown] Worker CommandItem onSelect. Worker ID:', worker.id);
                         handleSelect(worker.id);
                       }}
                     >
@@ -285,36 +272,3 @@ export function WorkerSelectorDropdown({
     </>
   )
 }
-
-// TEMPORARY TEST: Render WorkerSelectorDropdown outside of modal for debugging
-// Remove or comment out after testing
-import React from 'react';
-
-const mockWorker = {
-  id: 'mock-worker-id',
-  first_name: 'Test',
-  last_name: 'User',
-  preferred_name: 'Tester',
-  job_level: 'junior',
-  is_lead: false,
-  availability: null,
-  preferred_hours_per_week: null,
-  created_at: new Date().toISOString(),
-};
-
-export default function WorkerSelectorDropdownTestPage() {
-  return (
-    <div style={{ maxWidth: 400, margin: '2rem auto', padding: 24, border: '1px solid #ccc', borderRadius: 8 } as React.CSSProperties}>
-      <h2>Test WorkerSelectorDropdown (Standalone)</h2>
-      <WorkerSelectorDropdown
-        scheduledShiftId={"test-shift-id"}
-        targetAssignmentType={"regular"}
-        currentWorkerId={null}
-        onWorkerSelect={(worker) => console.log('Selected worker:', worker)}
-        disabled={false}
-        placeholder="Select a worker..."
-        excludeWorkerId={null}
-      />
-    </div>
-  );
-} 
