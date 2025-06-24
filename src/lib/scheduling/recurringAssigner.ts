@@ -2,7 +2,8 @@ import {
     RecurringShiftAssignment, 
     ShiftTemplate, 
     ScheduledShift, 
-    ShiftAssignment
+    ShiftAssignment,
+    Worker
 } from '@/lib/types';
 import { ScheduleGenerationState } from './scheduleState';
 import { mapDayOfWeekToDate } from './utils';
@@ -18,6 +19,7 @@ import { v4 as uuidv4 } from 'uuid';
  * @param recurringAssignments List of recurring assignments for the target location.
  * @param weekDates Array of 7 Date objects for the target week (Mon-Sun).
  * @param templates List of all required ShiftTemplates for the target location.
+ * @param activeWorkers List of active workers for the target location.
  * @param state The ScheduleGenerationState object to update.
  * @returns An object containing an array of warning messages.
  */
@@ -25,6 +27,7 @@ export function processRecurringAssignments(
     recurringAssignments: RecurringShiftAssignment[],
     weekDates: Date[],
     templates: ShiftTemplate[],
+    activeWorkers: Worker[],
     state: ScheduleGenerationState
 ): { warnings: string[] } {
     const warnings: string[] = [];
@@ -64,6 +67,25 @@ export function processRecurringAssignments(
                 `at location ${assignment.location_id}. Skipping assignment ID ${assignment.id}.`
             );
             continue; // Skip assignment if no matching template found
+        }
+
+        // NEW: Add lead eligibility check
+        const worker = activeWorkers.find(w => w.id === assignment.worker_id);
+        if (!worker) {
+            warnings.push(
+                `Recurring assignment for worker ID ${assignment.worker_id} (not found in active list) could not be processed for template ${matchingTemplate.id}. Skipping.`
+            );
+            continue;
+        }
+
+        // Check if the template requires a lead and if the worker is eligible
+        if (matchingTemplate.lead_type && !worker.is_lead) {
+            warnings.push(
+                `Recurring assignment for worker ${worker.first_name} ${worker.last_name} ` +
+                `on ${assignment.day_of_week} matches a LEAD shift (template ${matchingTemplate.id}), ` +
+                `but the worker is not a lead. Skipping assignment.`
+            );
+            continue;
         }
 
         const foundTemplateId = matchingTemplate.id;

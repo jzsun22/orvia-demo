@@ -136,7 +136,8 @@ export async function generateWeeklySchedule(
         const recurringResult = processRecurringAssignments(
             recurringAssignments, 
             weekDates, 
-            templates, 
+            templates,
+            activeWorkers, 
             state
         );
         warnings.push(...recurringResult.warnings);
