@@ -9,10 +9,8 @@ export const employeeInfoSchema = z.object({
   birthday: z.coerce.date().optional(),
   job_level: z.enum(['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'] as [JobLevel, ...JobLevel[]]),
   preferred_hours_per_week: z
-    .string()
-    .optional()
-    .transform(v => v === '' ? undefined : v)
-    .pipe(
+    .preprocess(
+      (val) => (val === '' || val == null ? undefined : val),
       z.coerce
         .number({
           invalid_type_error: 'Preferred hours must be a number.',
@@ -20,7 +18,8 @@ export const employeeInfoSchema = z.object({
         .int({ message: 'Preferred hours must be a whole number.' })
         .positive({ message: 'Preferred hours must be a positive number.' })
         .optional()
-    ),
+    )
+    .nullable(),
   inactive: z.boolean(),
 });
 
