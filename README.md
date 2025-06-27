@@ -28,7 +28,7 @@
 ## 🛠️ Technology Overview
 
 - **Frontend**: [Next.js](https://nextjs.org/) + TypeScript + Tailwind CSS 
-  - Libraries: [Shadcn/ui](https://ui.shadcn.com/) + [Origin UI](https://originui.com/)(just a tiny bit)
+  - Libraries: [Shadcn/ui](https://ui.shadcn.com/) + [Origin UI](https://originui.com/) (just a tiny bit)
 - **Backend**: [Supabase](https://supabase.com/) (PostgreSQL + Edge Functions)  
 - **Authentication**: Supabase Auth with Row-Level Security (RLS)  
 - **Scheduling Logic**: Runs entirely in the browser using JavaScript
