@@ -27,7 +27,8 @@
 
 ## 🛠️ Technology Overview
 
-- **Frontend**: [Next.js](https://nextjs.org/) + TypeScript + Tailwind CSS  
+- **Frontend**: [Next.js](https://nextjs.org/) + TypeScript + Tailwind CSS 
+  - Libraries: [Shadcn/ui](https://ui.shadcn.com/) + [Origin UI](https://originui.com/)(just a tiny bit)
 - **Backend**: [Supabase](https://supabase.com/) (PostgreSQL + Edge Functions)  
 - **Authentication**: Supabase Auth with Row-Level Security (RLS)  
 - **Scheduling Logic**: Runs entirely in the browser using JavaScript
@@ -50,23 +51,26 @@ Orvia
 │   │   ├── login/                                                         
 │   │   └── schedule/                                                     
 │   │       └── [location]/         # Dynamic route, location-specifc                                                  
-│   ├── components/                                                        
+│   ├── components/ 
+│   │   ├── dashboard/              # Component used by dashboard page
+│   │   ├── employees/              # Component used by employees page
 │   │   ├── layout/                                                        
 │   │   ├── modals/                 # Modal dialog components
 │   │   ├── scheduling/             # Components specific to the scheduling features
 │   │   ├── select/                 # Custom select/dropdown components
 │   │   └── ui/                                                            
-│   ├── hooks/                      # Custom React hooks for shared logic and state management
+│   ├── hooks/                      # Custom React hooks for swr and state management
 │   ├── lib/                                                               
-│   │   ├── db/                     # Database-related utilities and helper functions
 │   │   ├── scheduling/             # Core logic for schedule generation and manipulation
 │   │   ├── schemas/                # Data validation schemas 
 │   │   ├── supabase/               # Supabase client    
 │   │   ├── supabase.ts             # Supabase helper functions
+│   │   ├── toast-service.ts
 │   │   ├── types.ts
 │   │   └── utils.ts
 │   ├── styles/                                                            
-│   ├── types/                                                             
+│   ├── types/  
+│   └── middleware.ts                                                           
 └── public/                         # Static assets
 ``` 
 
