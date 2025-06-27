@@ -52,13 +52,19 @@ export function processRecurringAssignments(
         }
 
         // c. Find Matching Template
-        const matchingTemplate = templates.find(template => 
-            template.location_id === assignment.location_id &&
-            template.position_id === assignment.position_id &&
-            template.days_of_week.includes(assignment.day_of_week) &&
-            template.start_time === assignment.start_time &&
-            template.end_time === assignment.end_time
-        );
+        const matchingTemplate = templates.find(template => {
+            const isRecurringLead = assignment.assignment_type === 'lead';
+            const isTemplateLead = !!template.lead_type; // True if 'opening' or 'closing'
+
+            return (
+                template.location_id === assignment.location_id &&
+                template.position_id === assignment.position_id &&
+                template.days_of_week.includes(assignment.day_of_week) &&
+                template.start_time === assignment.start_time &&
+                template.end_time === assignment.end_time &&
+                isRecurringLead === isTemplateLead // Match lead-to-lead and regular-to-regular
+            );
+        });
 
         if (!matchingTemplate) {
             warnings.push(

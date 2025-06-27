@@ -89,7 +89,7 @@ export function assignLeads(
         id: uuidv4(),
         scheduled_shift_id: newScheduledShift.id,
         worker_id: winner.id,
-        assignment_type: 'lead',
+        assignment_type: template.lead_type ? 'lead' : 'regular',
         is_manual_override: false,
         assigned_start: template.start_time,
         assigned_end: template.end_time,
