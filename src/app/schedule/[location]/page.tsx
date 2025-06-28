@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import useSWR, { useSWRConfig } from 'swr';
+import React, { useState, useEffect } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 import { generateWeeklySchedule } from "@/lib/scheduling/scheduleGenerator";
@@ -18,6 +17,17 @@ import {
 import { useAppToast } from "@/lib/toast-service";
 import { formatLocationName } from "@/lib/utils";
 import ScheduleGridSkeleton from "@/components/scheduling/ScheduleGridSkeleton";
+import { useSchedulePageData } from "@/hooks/useSchedulePageData";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
 
 const PT_TIMEZONE = 'America/Los_Angeles';
 
@@ -59,169 +69,11 @@ function getWeekStartPT(referenceDate: Date): Date {
   return getPTMidnightDate(monYearPT, monMonthPT, monDayPT);
 }
 
-interface Location {
-  id: string;
-  name: string;
-}
-
-interface Worker {
-  id: string;
-  first_name: string | null;
-  last_name: string | null;
-  preferred_name?: string | null;
-  job_level?: string | null;
-}
-
-interface ShiftTemplate {
-  id: string;
-  location_id: string | null;
-  position_id: string | null;
-  days_of_week: string[] | null;
-  start_time: string;
-  end_time: string;
-  lead_type?: string | null;
-  schedule_column_group?: number | null;
-}
-
-interface Position {
-  id: string;
-  name: string;
-}
-
-// New interface for data passed to ScheduleGrid
-interface ScheduledShiftForGrid {
-  id: string; 
-  shift_date: string; 
-  template_id: string | null; 
-  start_time: string | null; 
-  end_time: string | null; 
-  is_recurring_generated: boolean | null; 
-  positionName?: string; // Derived
-  
-  // Primary assignment details
-  worker_id: string | null; 
-  workerName?: string; // Assigned worker's formatted name
-  job_level?: string | null;
-  assigned_start?: string | null; 
-  assigned_end?: string | null;  
-  is_manual_override?: boolean | null; // From shift_assignments
-
-  // Training assignment details
-  trainingWorkerId?: string | null;
-  trainingWorkerName?: string; // Trainee's Preferred or First name
-  trainingWorkerAssignedStart?: string | null; 
-  trainingWorkerAssignedEnd?: string | null;   
-  isTrainingAssignmentManuallyOverridden?: boolean | null;
-}
-
-interface SchedulePageData {
-  location: Location;
-  workers: Worker[];
-  allShiftTemplates: ShiftTemplate[];
-  positions: Position[];
-  scheduledShifts: ScheduledShiftForGrid[];
-}
-
-const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): Promise<SchedulePageData> => {
-  // 1. Fetch Location
-  const { data: location, error: locError } = await supabase
-    .from("locations")
-    .select("id, name")
-    .eq("name", locationSlug.toLowerCase().trim())
-    .single();
-  if (locError) throw new Error(locError.message);
-  if (!location) throw new Error("Location not found");
-
-  // 2. Fetch Base Meta (workers, templates, positions)
-  const [workersRes, templatesRes, positionsRes] = await Promise.all([
-    supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
-    supabase.from("shift_templates").select("*"),
-    supabase.from("positions").select("id, name"),
-  ]);
-  if (workersRes.error) throw new Error(workersRes.error.message);
-  if (templatesRes.error) throw new Error(templatesRes.error.message);
-  if (positionsRes.error) throw new Error(positionsRes.error.message);
-
-  const workers = workersRes.data;
-  const allShiftTemplates = templatesRes.data;
-  const positions = positionsRes.data;
-
-  // 3. Fetch scheduled shifts
-  const firstDayOfWeekQuery = weekStart;
-  const lastDayOfWeekQuery = new Date(firstDayOfWeekQuery.getTime());
-  lastDayOfWeekQuery.setUTCDate(lastDayOfWeekQuery.getUTCDate() + 6);
-  const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
-  const startDateQueryStr = ptDateFormatter.format(firstDayOfWeekQuery);
-  const endDateQueryStr = ptDateFormatter.format(lastDayOfWeekQuery);
-
-  const { data: allShiftsForDateRange, error: shiftsError } = await supabase
-    .from("scheduled_shifts")
-    .select("id, shift_date, template_id, start_time, end_time, is_recurring_generated") 
-    .gte("shift_date", startDateQueryStr).lte("shift_date", endDateQueryStr);
-  if (shiftsError) throw new Error(shiftsError.message);
-  if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) {
-    return { location, workers, allShiftTemplates, positions, scheduledShifts: [] };
-  }
-  
-  const templateIdsForCurrentLocation = allShiftTemplates.filter(t => t.location_id === location.id).map(t => t.id);
-  const relevantScheduledShifts = allShiftsForDateRange.filter(s => 
-    s.template_id !== null && templateIdsForCurrentLocation.includes(s.template_id)
-  );
-  if (relevantScheduledShifts.length === 0) {
-    return { location, workers, allShiftTemplates, positions, scheduledShifts: [] };
-  }
-
-  const shiftIds = relevantScheduledShifts.map(s => s.id);
-  const { data: assignmentsWithWorkers, error: assignmentsError } = await supabase.from('shift_assignments')
-    .select(`scheduled_shift_id, worker_id, assignment_type, is_manual_override, assigned_start, assigned_end, workers (id, first_name, last_name, preferred_name, job_level)`)
-    .in('scheduled_shift_id', shiftIds);
-  if (assignmentsError) throw new Error(assignmentsError.message);
-  
-  const populatedShifts: ScheduledShiftForGrid[] = relevantScheduledShifts.map(shift => {
-    const shiftAssignments = assignmentsWithWorkers?.filter(a => a.scheduled_shift_id === shift.id) || [];
-    let primaryAssignment = shiftAssignments.find(a => a.assignment_type === 'lead') || shiftAssignments.find(a => a.assignment_type === 'regular');
-    let workerName, assignedWorkerId = null, assignedStartTime = null, assignedEndTime = null, isManualOverride = null, workerJobLevel = null;
-    if (primaryAssignment?.workers) {
-      const workerData = primaryAssignment.workers as any;
-      workerName = workerData.preferred_name?.trim() || workerData.first_name?.trim() || 'Unknown Worker';
-      assignedWorkerId = workerData.id; workerJobLevel = workerData.job_level || null;
-      assignedStartTime = primaryAssignment.assigned_start || null; assignedEndTime = primaryAssignment.assigned_end || null;
-      isManualOverride = primaryAssignment.is_manual_override ?? null;
-    }
-
-    const trainingAssignment = shiftAssignments.find(a => a.assignment_type === 'training');
-    let trainingWorkerId = null, trainingWorkerName, trainingWorkerAssignedStartTime = null, trainingWorkerAssignedEndTime = null, isTrainingAssignmentManuallyOverridden = null;
-    if (trainingAssignment?.workers) {
-      const traineeData = trainingAssignment.workers as any;
-      trainingWorkerName = traineeData.preferred_name?.trim() || traineeData.first_name?.trim() || 'Trainee';
-      trainingWorkerId = traineeData.id;
-      trainingWorkerAssignedStartTime = trainingAssignment.assigned_start || null; trainingWorkerAssignedEndTime = trainingAssignment.assigned_end || null;
-      isTrainingAssignmentManuallyOverridden = trainingAssignment.is_manual_override ?? null;
-    }
-
-    const template = allShiftTemplates.find(t => t.id === shift.template_id);
-    const position = template ? positions.find(p => p.id === template.position_id) : null;
-
-    return {
-      ...shift,
-      positionName: position ? position.name : 'N/A',
-      worker_id: assignedWorkerId, workerName: workerName || undefined, job_level: workerJobLevel,
-      assigned_start: assignedStartTime, assigned_end: assignedEndTime, is_manual_override: isManualOverride,
-      trainingWorkerId, trainingWorkerName: trainingWorkerName || undefined, 
-      trainingWorkerAssignedStart: trainingWorkerAssignedStartTime, trainingWorkerAssignedEnd: trainingWorkerAssignedEndTime, 
-      isTrainingAssignmentManuallyOverridden,
-    };
-  });
-
-  return { location, workers, allShiftTemplates, positions, scheduledShifts: populatedShifts };
-};
-
-
 const ButtonWrapper: React.FC<{
   isDisabled: boolean;
   showTooltip: boolean;
   tooltipText: string;
-  children: React.ReactElement; 
+  children: React.ReactElement;
 }> = ({ isDisabled, showTooltip, tooltipText, children }) => {
   const spanContent = (
     <span
@@ -237,7 +89,7 @@ const ButtonWrapper: React.FC<{
       <TooltipProvider>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>{spanContent}</TooltipTrigger>
-          <TooltipContent><p>{tooltipText}</p></TooltipContent>
+          <TooltipContent className="bg-[#F0C4B4]"><p>{tooltipText}</p></TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
@@ -247,7 +99,7 @@ const ButtonWrapper: React.FC<{
 
 const SchedulePage = () => {
   const params = useParams();
-  const searchParams = useSearchParams(); 
+  const searchParams = useSearchParams();
   const router = useRouter();
   const { showSuccessToast } = useAppToast();
   const locationSlug = params?.location as string;
@@ -258,12 +110,10 @@ const SchedulePage = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPastWeek, setIsPastWeek] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  
-  const { mutate } = useSWRConfig();
-  const { data, error, isLoading } = useSWR<SchedulePageData>(
-    locationSlug ? [locationSlug, weekStart] : null, 
-    () => schedulePageFetcher([locationSlug, weekStart])
-  );
+  const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
+  const [pendingGenerate, setPendingGenerate] = useState(false);
+
+  const { data, error, isLoading, mutate } = useSchedulePageData(locationSlug, weekStart);
 
   useEffect(() => {
     const { data: authListener } = supabase.auth.onAuthStateChange((event) => {
@@ -276,8 +126,8 @@ const SchedulePage = () => {
 
   useEffect(() => {
     const weekParam = searchParams.get('week');
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' 
+    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
     });
     let derivedMondayFromUrl: Date;
     let needsUrlUpdate = false;
@@ -305,7 +155,7 @@ const SchedulePage = () => {
     }
 
     if (needsUrlUpdate && weekParam !== newUrlWeekParam) {
-       router.push(`/schedule/${locationSlug}?week=${newUrlWeekParam}`, { scroll: false });
+      router.push(`/schedule/${locationSlug}?week=${newUrlWeekParam}`, { scroll: false });
     }
   }, [searchParams, locationSlug, router, weekStart]);
 
@@ -318,12 +168,12 @@ const SchedulePage = () => {
     const currentWS = weekStart;
     const prevWeekDate = new Date(currentWS.getTime());
     prevWeekDate.setUTCDate(prevWeekDate.getUTCDate() - 7);
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' 
+    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
     });
     const formattedDate = ptDateFormatter.format(prevWeekDate);
     if (locationSlug) {
-        router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
+      router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
     }
   };
 
@@ -331,12 +181,12 @@ const SchedulePage = () => {
     const currentWS = weekStart;
     const nextWeekDate = new Date(currentWS.getTime());
     nextWeekDate.setUTCDate(nextWeekDate.getUTCDate() + 7);
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', { 
-        timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' 
+    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
     });
     const formattedDate = ptDateFormatter.format(nextWeekDate);
     if (locationSlug) {
-        router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
+      router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
     }
   };
 
@@ -344,12 +194,13 @@ const SchedulePage = () => {
     if (!data?.location) return;
 
     if (data.scheduledShifts.length > 0) {
-      const confirmation = window.confirm(
-        "A schedule already exists for this week. Do you want to overwrite it?"
-      );
-      if (!confirmation) return;
+      setShowOverwriteDialog(true);
+      return;
     }
+    await proceedGenerateSchedule(data.location.id, data.location.name);
+  };
 
+  const proceedGenerateSchedule = async (locationId: string, locationName: string) => {
     setIsGenerating(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -359,15 +210,15 @@ const SchedulePage = () => {
         const { data: workerData } = await supabase.from('workers').select('id').eq('user_id', user.id).single();
         if (workerData) managerWorkerId = workerData.id;
       }
-      
-      await generateWeeklySchedule(supabase, data.location.id, weekStart, managerWorkerId);
-      
-      mutate([locationSlug, weekStart]);
-      
-      const formattedWeekStart = weekStart.toLocaleDateString('en-US', { 
-        year: 'numeric', month: 'long', day: 'numeric' 
+
+      await generateWeeklySchedule(supabase, locationId, weekStart, managerWorkerId);
+
+      mutate();
+
+      const formattedWeekStart = weekStart.toLocaleDateString('en-US', {
+        year: 'numeric', month: 'long', day: 'numeric'
       });
-      showSuccessToast(`Schedule for ${formatLocationName(data.location.name)} (week of ${formattedWeekStart}) generated successfully.`);
+      showSuccessToast(`Schedule for ${formatLocationName(locationName)} (week of ${formattedWeekStart}) generated successfully.`);
     } catch (error) {
       console.error("Error during schedule generation process:", error);
     } finally {
@@ -385,18 +236,18 @@ const SchedulePage = () => {
   };
 
   const handleModalClose = () => { setIsModalOpen(false); setSelectedShiftModalContext(null); };
-  
-  const handleModalSaveSuccess = async () => { 
-    setIsModalOpen(false); 
-    setSelectedShiftModalContext(null); 
-    mutate([locationSlug, weekStart]);
+
+  const handleModalSaveSuccess = async () => {
+    setIsModalOpen(false);
+    setSelectedShiftModalContext(null);
+    await mutate();
   };
 
   const currentShiftTemplates = data ? data.allShiftTemplates.filter(t => t.location_id === data.location?.id) : [];
-  
+
   const editButtonDisabled = isPastWeek || isGenerating || !data?.location || isLoading;
   const generateButtonDisabled = isGenerating || editMode || isPastWeek || !data?.location || isLoading;
-  
+
   const pastWeekTooltipContent = "Past schedules cannot be edited or regenerated.";
 
   if (error) {
@@ -408,12 +259,17 @@ const SchedulePage = () => {
   }
 
   return (
-    <div className="max-w-[1280px] mx-auto px-6 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-manrope font-bold text-primary">
-          {data?.location && !isLoading ? formatLocationName(data.location.name) : (isLoading ? "Loading Location..." : "Location Not Found")}
-        </h1>
-        <div className="flex items-center space-x-2">
+    <div className="max-w-[1280px] mx-auto mt-16 px-6 pt-4 pb-8">
+      <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
+        <div className="flex items-center gap-4 min-w-0">
+          <h1 className="text-3xl font-manrope font-bold text-primary-foreground whitespace-nowrap truncate">
+            {data?.location && !isLoading ? formatLocationName(data.location.name) : (isLoading ? "Loading Location..." : "Location Not Found")}
+          </h1>
+          <div className="relative top-[3px]">
+            <WeekNavigator weekStart={weekStart} onPrev={handlePrevWeek} onNext={handleNextWeek} isLoading={isLoading} />
+          </div>
+        </div>
+        <div className="flex items-center space-x-4">
           <ButtonWrapper isDisabled={editButtonDisabled} showTooltip={isPastWeek && editButtonDisabled} tooltipText={pastWeekTooltipContent}>
             <Button onClick={handleToggleEditMode} variant="outline" disabled={editButtonDisabled} >
               {editMode ? 'View Mode' : 'Edit Schedule'}
@@ -431,10 +287,6 @@ const SchedulePage = () => {
           </ButtonWrapper>
         </div>
       </div>
-      
-      <div className="mb-4">
-        <WeekNavigator weekStart={weekStart} onPrev={handlePrevWeek} onNext={handleNextWeek} />
-      </div>
 
       {isLoading ? (
         <ScheduleGridSkeleton />
@@ -447,7 +299,7 @@ const SchedulePage = () => {
           <ScheduleGrid
             weekStart={weekStart}
             scheduledShifts={data.scheduledShifts}
-            shiftTemplates={currentShiftTemplates} 
+            shiftTemplates={currentShiftTemplates}
             workers={data.workers}
             positions={data.positions}
             editMode={editMode}
@@ -459,11 +311,37 @@ const SchedulePage = () => {
               isOpen={isModalOpen}
               onClose={handleModalClose}
               shiftContext={selectedShiftModalContext}
-              onSaveSuccess={handleModalSaveSuccess}
+              onShiftUpdated={handleModalSaveSuccess}
             />
           )}
         </>
       )}
+
+      <AlertDialog open={showOverwriteDialog} onOpenChange={setShowOverwriteDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Overwrite Existing Schedule?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A schedule already exists for this week. Do you want to overwrite it? <br /> This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowOverwriteDialog(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                setShowOverwriteDialog(false);
+                if (data && data.location) {
+                  await proceedGenerateSchedule(data.location.id, data.location.name);
+                }
+              }}
+            >
+              Overwrite
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
