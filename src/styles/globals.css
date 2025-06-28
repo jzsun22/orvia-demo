@@ -4,45 +4,74 @@
 
 @layer base {
   :root {
-    --background: 60 9% 97%;
-    --foreground: 0 0% 12%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 12%;
+    --background: 20 43% 99%; /* Blush Cream */
+    --foreground: 24 5.7% 17.1%; /* Charcocal Cocoa */
+
+    --card: 24 29% 97%; /* #F9F6F4 */
+    --card-foreground: 24 5.7% 17.1%; /* Charcocal Cocoa */
+
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 12%;
-    --primary: 142 76% 36%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 30%;
-    --secondary-foreground: 0 0% 100%;
+
+    --primary: 0 0% 30%; 
+    --primary-foreground: 24 5.7% 17.1%; /* Charcocal Cocoa */
+
+    --secondary: 259 41% 86%; /* Lavender Cream */
+    --secondary-foreground: 24 5.7% 17.1%; /* Charcocal Cocoa */
+
     --muted: 60 9% 97%;
-    --muted-foreground: 0 0% 30%;
-    --accent: 142 76% 36%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 142 76% 36%;
-    --radius: 0.5rem;
+    --muted-foreground: 30 6.3% 31%; /* Ash Mocha #847974 */
+
+    --accent: 6 28.3% 71.6%; /* Rose Blush */
+    --accent-foreground: 24 5.7% 17.1%; /* Charcocal Cocoa */
+
+    --destructive: 4 53% 54%;
+    --destructive-foreground: 0 0% 100%; 
+
+    --border: 28 17.6% 83.3%; /* Very Light Beige */
+    --input: 25 29% 87%;
+    --ring: 6 25% 61%; /* Deeper Desaturated Rose Blush */
+
+    --radius: 0.75rem;
+
+    /* Custom color variables */
+    --charcoalcocoa: 24 5.7% 17.1%;
+    --roseblush: 6 28.3% 71.6%;
+    --lavendercream: 259 41% 86%;
+    --verylightbeige: 28 17.6% 83.3%;
+    --ashmocha: 19 6% 49%; /* #847A75 */
+    --deeproseblush: 6 25% 61%;
+    --oatbeige: 18 29% 93%;
+    --almondmilk: 30 27% 96%;
+    --pistachiomist: 140 22% 86%;
+    --errorred: 4 51% 52%; /* #C35048 */
   }
 
   .dark {
     --background: 20 14.3% 4.1%;
     --foreground: 0 0% 95%;
+
     --card: 24 9.8% 10%;
     --card-foreground: 0 0% 95%;
+
     --popover: 0 0% 9%;
     --popover-foreground: 0 0% 95%;
+
     --primary: 142.1 70.6% 45.3%;
     --primary-foreground: 144.9 80.4% 10%;
+
     --secondary: 240 3.7% 15.9%;
     --secondary-foreground: 0 0% 98%;
+
     --muted: 0 0% 15%;
     --muted-foreground: 240 5% 64.9%;
+
     --accent: 12 6.5% 15.1%;
     --accent-foreground: 0 0% 98%;
+
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 85.7% 97.3%;
+
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 142.4 71.8% 29.2%;
@@ -64,4 +93,6 @@
   button {
     font-weight: 500;
   }
+
+
 } 
