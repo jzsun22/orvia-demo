@@ -10,6 +10,8 @@ import type {
     ScheduledShift
 } from './types'
 import { getWeekDateRange, formatDateToYYYYMMDD } from '@/lib/scheduling/utils'
+import { startOfWeek, endOfWeek, format, parseISO, isToday } from 'date-fns'
+import { Database } from './supabase/database.types'
 
 // Helper function to get the current user
 export const getCurrentUser = async (client: SupabaseClient) => {
@@ -207,8 +209,22 @@ export const fetchSchedulingPrerequisites = async (client: SupabaseClient, locat
   }
 };
 
-// Scheduled shifts helper functions that need location_id updates
-export const fetchScheduledShifts = async (client: SupabaseClient, locationId: string, startDate: string, endDate: string) => {
+// Type for scheduled shift with joined fields (via shift_template)
+export type ScheduledShiftWithJoins = Database['public']['Tables']['scheduled_shifts']['Row'] & {
+  worker: Pick<Database['public']['Tables']['workers']['Row'], 'id' | 'first_name' | 'last_name' | 'preferred_name'> | null;
+  shift_template: (Pick<Database['public']['Tables']['shift_templates']['Row'], 'id' | 'position_id' | 'location_id'> & {
+    position: Pick<Database['public']['Tables']['positions']['Row'], 'id' | 'name'> | null;
+    location: Pick<Database['public']['Tables']['locations']['Row'], 'id' | 'name'> | null;
+  }) | null;
+};
+
+export const fetchScheduledShifts = async (
+  client: SupabaseClient,
+  locationId: string,
+  startDate: string,
+  endDate: string
+): Promise<ScheduledShiftWithJoins[]> => {
+  // We cannot filter by location_id directly in the query because it's only available via shift_template
   const { data, error } = await client
     .from('scheduled_shifts')
     .select(`
@@ -219,16 +235,20 @@ export const fetchScheduledShifts = async (client: SupabaseClient, locationId: s
         last_name,
         preferred_name
       ),
-      position:positions (
+      shift_template:shift_templates (
         id,
-        name
-      ),
-      location:locations (
-        id,
-        name
+        position_id,
+        location_id,
+        position:positions (
+          id,
+          name
+        ),
+        location:locations (
+          id,
+          name
+        )
       )
     `)
-    .eq('location_id', locationId)
     .gte('shift_date', startDate)
     .lte('shift_date', endDate)
   
@@ -236,8 +256,10 @@ export const fetchScheduledShifts = async (client: SupabaseClient, locationId: s
     console.error('Error fetching scheduled shifts:', error.message)
     throw error
   }
-  
-  return data || []
+  // Filter in JS for locationId via shift_template
+  return ((data as ScheduledShiftWithJoins[]) || []).filter(
+    shift => shift.shift_template?.location_id === locationId
+  )
 }
 
 // --- NEW DATA ACCESS FUNCTIONS FOR EDGE FUNCTION UTILS ---
@@ -282,5 +304,27 @@ export async function fetchWorkerShiftsForWeek(
         throw new Error(`Failed to fetch worker shifts for week: ${error.message}`);
     }
     return (data as any) || [];
+}
+
+// Fetch all workers with birthday field for dashboard birthday logic
+export const fetchWorkersWithBirthday = async (client: SupabaseClient) => {
+  const { data, error } = await client
+    .from('workers')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      preferred_name,
+      birthday
+    `)
+    .order('last_name', { ascending: true })
+    .order('first_name', { ascending: true });
+
+  if (error) {
+    console.error('Error fetching workers with birthday:', error.message);
+    throw error;
+  }
+
+  return data || [];
 }
 

@@ -43,6 +43,7 @@ export interface Worker {
     is_lead: boolean;
     preferred_hours_per_week: number | null;
     created_at: string;
+    birthday: string | null;
     inactive?: boolean | null;
     // Align with aliases used in fetchWorkers from supabase.ts
     positions?: { position?: { id: string, name?: string } }[]; 
@@ -301,4 +302,49 @@ export interface EditableShiftDetails {
   shiftType: 'opening-lead' | 'closing-lead' | 'non-lead';
   location: Location;
   position: Position;
+}
+
+// From src/app/employees/page.tsx
+export interface DatabaseWorker {
+  id: string;
+  first_name: string;
+  last_name: string;
+  preferred_name?: string;
+  job_level: JobLevel;
+  availability: any;
+  preferred_hours_per_week: number | null;
+  is_lead: boolean;
+  created_at: string;
+  inactive?: boolean | null;
+  gender: 'male' | 'female' | 'non-binary' | null;
+  birthday: string | null;
+  positions: {
+    position: {
+      name: string;
+      id: string;
+    }
+  }[];
+  locations: {
+    location: {
+      id: string;
+      name: string;
+    }
+  }[];
+}
+
+export interface Employee {
+  id: string;
+  first_name: string;
+  last_name: string;
+  preferred_name: string | null;
+  job_level: JobLevel;
+  is_lead: boolean;
+  location_ids: string[];
+  positions: string[];
+  availability: any;
+  preferred_hours_per_week: number | null;
+  created_at: string;
+  inactive?: boolean | null;
+  gender: 'male' | 'female' | 'non-binary' | null;
+  birthday: string | null;
 } 
