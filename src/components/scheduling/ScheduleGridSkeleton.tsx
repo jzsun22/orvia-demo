@@ -2,80 +2,69 @@ import React from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const ScheduleGridSkeleton = () => {
-  const weekDays = Array.from({ length: 7 });
-  const roles = [
-    { name: "Role 1", columns: [1, 2, 3] },
-    { name: "Role 2", columns: [1, 2] },
+  // 7 days, 7 columns (matching screenshot)
+  const days = [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+  const columns = [
+    "Prep",
+    "Barista",
+    "Barista - Opening",
+    "Barista",
+    "Barista - Closing",
+    "Barista",
+    "Barista",
   ];
 
   return (
-    <div className="border rounded-lg p-4 bg-white">
-      <div className="grid grid-cols-8 gap-2">
-        {/* Header: Empty corner + Days of the week */}
-        <div />
-        {weekDays.map((_, i) => (
-          <Skeleton key={i} className="h-8 w-full rounded-md" />
-        ))}
+    <div className="rounded-xl bg-[#F9F6F4] p-4 md:p-6 shadow-sm border max-w-6xl mx-auto">
+      {/* Table header: Barista role */}
+      <div className="w-full">
+        <div className="flex items-center border-b border-[#e7e0db] bg-[#f3ebe7] rounded-t-xl">
+          <Skeleton className="h-7 w-24 ml-4 my-3 rounded-md" />
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full border-separate border-spacing-0">
+            <thead>
+              <tr className="bg-[#F9F6F4]">
+                <th className="sticky left-0 z-10 bg-[#F9F6F4] p-0">
+                  <Skeleton className="h-8 w-20 rounded-md ml-2" />
+                </th>
+                {columns.map((col, i) => (
+                  <th key={i} className="p-0">
+                    <div className="flex flex-col items-center py-2">
+                      <Skeleton className="h-10 w-24 rounded-md mb-1" />
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {days.map((day, i) => (
+                <tr key={day} className={i % 2 === 0 ? "bg-[#f9f6f4] border-b border-[#e7e0db]" : "bg-white border-b border-[#e7e0db]"}>
+                  <td className="sticky left-0 z-10 bg-[#f9f6f4] px-2 py-2 align-middle">
+                    <div className="flex flex-col items-start">
+                      <Skeleton className="h-4 w-16 mb-1 rounded-md" />
+                      <Skeleton className="h-3 w-10 rounded-md" />
+                    </div>
+                  </td>
+                  {columns.map((_, j) => (
+                    <td key={j} className="px-2 py-2 text-center align-middle">
+                      <Skeleton className="h-8 w-16 rounded-md mx-auto" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-
-      {roles.map((role, roleIndex) => (
-        <div key={roleIndex} className="mt-4">
-          <Skeleton className="h-6 w-1/4 mb-3 rounded-md" />
-          <div className="grid grid-cols-8 gap-2 items-start">
-            {/* Role/Column Headers */}
-            {role.columns.map((_, colIndex) => (
-              <React.Fragment key={colIndex}>
-                {colIndex === 0 && <div className="col-span-1" />}
-                <div className="col-span-1">
-                  <Skeleton className="h-10 w-full rounded-md" />
-                </div>
-              </React.Fragment>
-            ))}
-
-            {/* Empty cells to fill the row if needed */}
-            {Array.from({ length: 8 - 1 - role.columns.length }).map((_, i) => (
-               <div key={`empty-header-${i}`} />
-            ))}
-
-            {/* Grid Cells for each day */}
-            {weekDays.map((_, dayIndex) => (
-              <React.Fragment key={dayIndex}>
-                <div className="col-span-1 self-center">
-                  <Skeleton className="h-8 w-full rounded-md" />
-                </div>
-                {role.columns.map((_, colIndex) => (
-                  <div key={`${dayIndex}-${colIndex}`} className="col-span-1">
-                    <Skeleton className="h-16 w-full rounded-md" />
-                  </div>
-                ))}
-                {/* Fill empty space */}
-                {Array.from({ length: 8 - 1 - role.columns.length }).map((_, i) => (
-                    <div key={`empty-cell-${i}`} />
-                ))}
-              </React.Fragment>
-            ))}
-          </div>
-        </div>
-      ))}
-       <div className="space-y-4 pt-4">
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_1fr_1fr_1fr_1fr] gap-x-2 gap-y-3">
-                {/* Header Row */}
-                <Skeleton className="h-10 col-span-1 rounded-lg" />
-                {Array.from({ length: 7 }).map((_, i) => (
-                    <Skeleton key={`header-${i}`} className="h-10 col-span-1 rounded-lg" />
-                ))}
-
-                {/* Data Rows */}
-                {Array.from({ length: 5 }).map((_, rowIndex) => (
-                    <React.Fragment key={`row-${rowIndex}`}>
-                        <Skeleton className="h-16 col-span-1 rounded-lg" />
-                        {Array.from({ length: 7 }).map((_, colIndex) => (
-                            <Skeleton key={`cell-${rowIndex}-${colIndex}`} className="h-16 col-span-1 rounded-lg" />
-                        ))}
-                    </React.Fragment>
-                ))}
-            </div>
-        </div>
     </div>
   );
 };
