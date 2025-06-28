@@ -1,10 +1,10 @@
 "use client"
 
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import Image from "next/image"
-
+import { Separator } from "@/components/ui/separator"
 import { cn, formatLocationName } from "@/lib/utils"
 import { supabase } from "@/lib/supabase/client"
 import {
@@ -14,6 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   UserCircle, // Placeholder for user avatar
+  LogOut,
 } from "lucide-react"
 
 interface Location {
@@ -28,11 +29,17 @@ const baseNavigation = [
 
 export function SidebarNav() {
   const pathname = usePathname()
+  const router = useRouter()
   const [isScheduleOpen, setIsScheduleOpen] = useState(false)
   const [locations, setLocations] = useState<Array<{ name: string; href: string }>>([])
   const [isLoadingLocations, setIsLoadingLocations] = useState(true)
   const [userName, setUserName] = useState<string | null>(null)
   const [isLoadingUser, setIsLoadingUser] = useState(true)
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut()
+    router.push("/login")
+  }
 
   useEffect(() => {
     // Set schedule open state based on initial path
@@ -99,38 +106,39 @@ export function SidebarNav() {
   }, []) // Empty dependency array means this runs once on mount
 
   return (
-    <div className="flex h-screen w-72 flex-col border-r border-neutral-200 bg-white p-6">
-      {/* Header with Logo and App Name - Reduced size */}
-      <div className="mb-8 flex items-center space-x-0 px-1"> {/* Adjusted mb, space-x, px */}
-        <Image
+    <div className="flex h-screen w-76 flex-col border-r bg-white p-8">
+      <div className="mb-8 flex items-center space-x-0 px-1 mt-20"> 
+        <div className="rounded-sm shadow-sm">
+          <Image
           src="/rose_logo.png"
           alt="Rosette & Co. Logo"
           width={64}
           height={64}
           className="h-16 w-16"
-        />
-        <h1 className="text-xl font-semibold text-[#0d5442]">Rosette & Co.</h1> {/* Adjusted text size */}
+          />
+        </div>
+        <h1 className="text-xl font-semibold text-charcoalcocoa px-4">Rosette & Co.</h1> 
       </div>
 
       {/* Navigation Links */}
-      <nav className="flex-1 space-y-2"> {/* Adjusted space-y */}
+      <nav className="flex-1 space-y-4 mt-2"> 
         {baseNavigation.map((item) => {
           const isActive =
             pathname === item.href ||
             (item.href && item.href !== "/" && pathname.startsWith(item.href)); // Adjusted to handle root and other paths
 
           const linkClasses = cn(
-            "group flex items-center rounded-lg px-3 py-2.5 text-sm font-semibold",
+            "group flex items-center rounded-xl px-4 py-3 gap-1 text-sm font-semibold transition-all duration-200",
             isActive
-              ? "bg-[#0d5442] text-white"
-              : "text-neutral-700 hover:bg-neutral-100 hover:text-[#0d5442]"
+              ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
+              : "text-charcoalcocoa hover:bg-lavendercream"
           );
 
           const iconClasses = cn(
             "mr-3 h-5 w-5 flex-shrink-0",
             isActive
-              ? "text-white"
-              : "text-neutral-500 group-hover:text-[#0d5442]"
+              ? "text-charcoalcocoa"
+              : "text-charcoalcocoa group-hover:text-charcoalcocoa"
           );
 
           return (
@@ -154,10 +162,10 @@ export function SidebarNav() {
             onClick={() => setIsScheduleOpen(!isScheduleOpen)}
             disabled={isLoadingLocations} // Disable button while loading
             className={cn(
-              "group flex w-full items-center rounded-lg px-3 py-2.5 text-left text-sm font-semibold", // Adjusted padding, text size
+              "group flex w-full items-center rounded-xl px-4 py-3 gap-1 text-left text-sm font-semibold transition-all duration-200", 
               pathname.startsWith("/schedule")
-                ? "bg-[#0d5442] text-white"
-                : "text-neutral-700 hover:bg-neutral-100 hover:text-[#0d5442]",
+                ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
+                : "text-charcoalcocoa hover:bg-lavendercream transition-colors duration-200",
               isLoadingLocations && "cursor-not-allowed opacity-50"
             )}
           >
@@ -165,8 +173,8 @@ export function SidebarNav() {
               className={cn(
                 "mr-3 h-5 w-5 flex-shrink-0", // Adjusted margin, icon size
                 pathname.startsWith("/schedule")
-                  ? "text-white"
-                  : "text-neutral-500 group-hover:text-[#0d5442]"
+                  ? "text-charcoalcocoa"
+                  : "text-charcoalcocoa group-hover:text-charcoalcocoa"
               )}
               aria-hidden="true"
             />
@@ -180,24 +188,24 @@ export function SidebarNav() {
             )}
           </button>
           {!isLoadingLocations && isScheduleOpen && (
-            <div className="mt-1 space-y-1 pl-8"> {/* Adjusted padding */}
+            <div className="mt-2 space-y-1 pl-10"> {/* Adjusted padding */}
               {locations.length > 0 ? (
                 locations.map((loc) => (
                   <Link
                     key={loc.name}
                     href={loc.href}
                     className={cn(
-                      "group flex items-center rounded-md px-3 py-2 text-sm font-medium", // Changed py-1.5 to py-2 and text-xs to text-sm
+                      "group flex items-center rounded-md px-3 py-2 text-sm font-medium", 
                       pathname === loc.href
-                        ? "text-[#0d5442] font-semibold" // Bolder active sub-item
-                        : "text-neutral-600 hover:bg-neutral-100 hover:text-[#0d5442]"
+                        ? "text-[#A597CE] font-semibold" 
+                        : "text-charcoalcocoa hover:bg-lavendercream"
                     )}
                   >
                     {loc.name}
                   </Link>
                 ))
               ) : (
-                <span className="block px-3 py-1.5 text-xs text-neutral-500">
+                <span className="block px-3 py-1.5 text-xs text-charcoalcocoa">
                   No locations found.
                 </span>
               )}
@@ -207,17 +215,29 @@ export function SidebarNav() {
       </nav>
 
       {/* User Info Footer */}
-      <div className="mt-auto border-t border-neutral-200 pt-5"> {/* Adjusted padding */}
-        <div className="flex items-center space-x-2.5"> {/* Adjusted spacing */}
-          <UserCircle className="h-9 w-9 rounded-full text-neutral-500" /> {/* Adjusted icon size */}
+      <div className="mt-auto">
+        <Separator className="my-2 bg-verylightbeige" />
+        <div className="flex items-center space-x-2 pt-6 pl-1">
+          <UserCircle className="h-9 w-9 rounded-full text-lavendercream" />
           <div>
             {isLoadingUser ? (
-              <p className="text-xs font-semibold text-neutral-800">Loading...</p>
+              <p className="text-xs font-semibold text-charcoalcocoa">Loading...</p>
             ) : (
-              <p className="text-xs font-semibold text-neutral-800">{userName}</p>
+              <>
+                <p className="text-xs font-semibold text-charcoalcocoa">{userName}</p>
+                <p className="text-[11px] text-charcoalcocoa">Regional Manager</p> 
+              </>
             )}
-            <p className="text-[11px] text-neutral-500">Store Manager</p> {/* Adjusted text size */}
           </div>
+        </div>
+        <div className="mt-4">
+          <button
+            onClick={handleLogout}
+            className="group flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-charcoalcocoa/60 transition-colors hover:bg-roseblush/20 hover:text-charcoalcocoa"
+          >
+            <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
+            <p className="pl-1">Logout</p>
+          </button>
         </div>
       </div>
     </div>
