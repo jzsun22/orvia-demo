@@ -1,5 +1,6 @@
 import React from "react";
 import { Edit3 } from 'lucide-react';
+import { prefetchEligibleWorkers } from '@/hooks/useEligibleWorkers';
 
 // Define Pacific Timezone constant
 const PT_TIMEZONE = 'America/Los_Angeles';
@@ -341,13 +342,13 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
 
     return (
       <div key={roleName} className={layoutClass}> 
-        <div className="border rounded-lg bg-white shadow-sm overflow-hidden">
+        <div className="border rounded-lg bg-white shadow-md overflow-hidden mb-12">
           <table className="w-full border-collapse text-xs sm:text-sm">
-            <thead className="bg-[#f8f9f7]"> 
+            <thead className="bg-[#F9F6F4]"> 
               <tr>
                 <th 
                   colSpan={columnsForRole.length + 1}
-                  className="p-3 text-xl font-manrope font-bold text-primary text-left border-b border-gray-300"
+                  className="p-3 text-lg font-manrope font-bold text-primary text-left border-b border-gray-300 bg-oatbeige"
                 >
                   {capitalize(roleName)}
                 </th>
@@ -365,11 +366,11 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                           <div className="flex w-full">
                             <div className="w-1/2 text-center p-2 border-r">
                               <div className="truncate font-medium">{pCol.headerText}</div>
-                              <div className="text-gray-500 text-[11px] sm:text-xs truncate">{formatTime12hr(pCol.startTime)} - {formatTime12hr(pCol.memberTemplates[0].end_time)}</div>
+                              <div className="text-ashmocha text-[11px] sm:text-xs truncate">{formatTime12hr(pCol.startTime)} - {formatTime12hr(pCol.memberTemplates[0].end_time)}</div>
                             </div>
                             <div className="w-1/2 text-center p-2">
                               <div className="truncate font-medium">{nextCol.headerText}</div>
-                              <div className="text-gray-500 text-[11px] sm:text-xs truncate">{formatTime12hr(nextCol.startTime)} - {formatTime12hr(nextCol.memberTemplates[0].end_time)}</div>
+                              <div className="text-ashmocha text-[11px] sm:text-xs truncate">{formatTime12hr(nextCol.startTime)} - {formatTime12hr(nextCol.memberTemplates[0].end_time)}</div>
                             </div>
                           </div>
                         </th>
@@ -379,9 +380,9 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                       continue;
                     } else {
                       headers.push(
-                        <th key={pCol.id} className="pl-2 pr-3 py-2 font-semibold border-b border-r text-center whitespace-nowrap align-top min-w-[100px] max-w-[180px]">
+                        <th key={pCol.id} className="pl-2 pr-3 py-2 font-semibold border-b border-r last:border-r-0 text-center whitespace-nowrap align-top min-w-[100px] max-w-[180px]">
                           <div className="truncate font-medium" title={pCol.headerText}>{pCol.headerText}</div>
-                          <div className="text-[11px] sm:text-xs text-gray-500 truncate">{pCol.headerTimeText}</div>
+                          <div className="text-[11px] sm:text-xs text-ashmocha truncate">{pCol.headerTimeText}</div>
                         </th>
                       );
                     }
@@ -409,20 +410,18 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                 }
 
                 const isToday = dateString === ptDateFormatter.format(new Date());
-                let rowClass = "border-t";
+                let rowClass = "border-t odd:bg-almondmilk/30 even:bg-white";
                 if (isToday) {
-                  rowClass += " bg-blue-50 font-semibold text-blue-700";
-                } else {
-                  rowClass += dayIndex % 2 !== 0 ? ' bg-gray-50' : ' bg-white';
+                  rowClass += " text-deeproseblush border-l-2 !border-l-roseblush";
                 }
-                rowClass += " hover:bg-gray-100";
+                rowClass += " hover:bg-lavendercream/30";
 
                 return (
                   <tr key={dateString} className={rowClass}>
-                    <td className="pl-3 pr-4 py-2.5 border-b border-r font-medium whitespace-nowrap align-top w-[100px] sm:w-[120px] bg-white sticky left-0 z-[1]">
+                    <td className="pl-3 pr-4 py-2.5 border-r font-medium whitespace-nowrap align-top w-[100px] sm:w-[120px] bg-card sticky left-0 z-[1]">
                       <div className="flex flex-col">
-                        <span>{DAYS_OF_WEEK[dayIndex]}</span>
-                        <span className="text-xs text-gray-500">{date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}</span>
+                        <span className={isToday ? "font-bold text-[#956D60]" : undefined}>{DAYS_OF_WEEK[dayIndex]}</span>
+                        <span className="text-xs text-ashmocha">{date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}</span>
                       </div>
                     </td>
                     {(() => {
@@ -437,7 +436,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                         const colSpan = column.isPaired && column.isPairStart ? 2 : 1;
                         let templatesForCell: ShiftTemplate[] = [];
                         let shiftsInCell: ScheduledShiftForGridDisplay[] = [];
-                        let cellClasses = "px-2 py-2.5 border-b border-r text-center h-[52px] align-middle relative";
+                        let cellClasses = "px-2 py-2.5 border-r last:border-r-0 text-center h-[52px] align-middle relative";
                         
                         if (colSpan === 2) {
                            const nextColumn = columnsForRole[i+1];
@@ -455,9 +454,9 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                         );
                         
                         if (editMode && templatesForCell.length > 0) {
-                          cellClasses += " cursor-pointer group hover:bg-gray-100 dark:hover:bg-slate-800";
+                          cellClasses += " cursor-pointer group hover:bg-lavendercream/50 dark:hover:bg-slate-800";
                         } else if (templatesForCell.length === 0) {
-                          cellClasses += " bg-emerald-50";
+                          cellClasses += " bg-oatbeige";
                         }
 
                         cells.push(
@@ -508,21 +507,52 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                                 }
                               }
                             }}
+                            onMouseEnter={() => {
+                              if (!editMode) return;
+                              // Prefetch for existing shift
+                              if (shiftsInCell.length > 0) {
+                                const shift = shiftsInCell[0];
+                                prefetchEligibleWorkers({
+                                  scheduledShiftId: shift.id,
+                                  targetAssignmentType: column.leadType === 'opening' || column.leadType === 'closing' ? 'lead' : 'regular',
+                                  // Optionally: excludeWorkerId, newShiftClientContext
+                                });
+                              } else if (templatesForCell.length > 0) {
+                                // Prefetch for new shift context
+                                const template = templatesForCell[0];
+                                prefetchEligibleWorkers({
+                                  scheduledShiftId: `new-shift-${template.id}-${dateString}`,
+                                  newShiftClientContext: {
+                                    templateId: template.id,
+                                    shiftDate: dateString,
+                                    startTime: template.start_time,
+                                    endTime: template.end_time,
+                                  },
+                                  targetAssignmentType: template.lead_type === 'opening' || template.lead_type === 'closing' ? 'lead' : 'regular',
+                                });
+                              }
+                            }}
                           >
                             {shiftsInCell.length > 0 ? (
                               shiftsInCell.slice(0, 1).map(shift => { // Render only one worker for paired shift
                                 if (shift.workerName) {
+                                  // Assigned cell: overlay Edit3 icon in top right on hover/focus (edit mode only)
                                   return (
-                                    <div key={shift.id} className="mb-1 last:mb-0"> 
-                                      <div className="font-semibold text-green-800">
-                                        {formatWorkerDisplay(shift.workerName, shift.job_level, shift.start_time || '', shift.end_time || '', shift.assigned_start, shift.assigned_end)}
-                                      </div>
+                                    <div key={shift.id} className="relative flex flex-col items-center justify-center w-full h-full group mb-1 last:mb-0">
+                                      <span className="font-medium text-charcoalcocoa text-center w-full flex justify-center">{formatWorkerDisplay(shift.workerName, shift.job_level, shift.start_time || '', shift.end_time || '', shift.assigned_start, shift.assigned_end)}</span>
+                                      {editMode && (
+                                        <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 flex items-center cursor-pointer">
+                                          <Edit3 size={12} className="text-ashmocha/40 group-hover:text-primary-foreground group-focus:text-primary-foreground" />
+                                        </span>
+                                      )}
                                       {shift.trainingWorkerName && (
-                                        <div className="mt-0.5 pt-0.5 border-t border-gray-200 text-xs text-blue-700">
-                                          <span>trn: {shift.trainingWorkerName}</span>
-                                          {(shift.trainingWorkerAssignedStart && shift.trainingWorkerAssignedEnd && 
-                                            (shift.trainingWorkerAssignedStart !== (shift.start_time || '') || shift.trainingWorkerAssignedEnd !== (shift.end_time || ''))) && (
-                                            <span className="text-gray-500 text-xs block">
+                                        <div className="flex flex-col items-center w-full mt-0.5">
+                                          <div className="w-full border-t border-gray-200 my-0.5" />
+                                          <span className="font-medium text-[#4F7A63] text-center">Training: {shift.trainingWorkerName}</span>
+                                          {(shift.trainingWorkerAssignedStart && shift.trainingWorkerAssignedEnd &&
+                                            (shift.trainingWorkerAssignedStart !== (shift.start_time || '') || shift.trainingWorkerAssignedEnd !== (shift.end_time || ''))
+                                          ) && (
+                                            <span className="text-ashmocha font-normal text-[11px] block text-center">
                                               ({formatTime12hr(shift.trainingWorkerAssignedStart || '')} - {formatTime12hr(shift.trainingWorkerAssignedEnd || '')})
                                             </span>
                                           )}
@@ -530,26 +560,25 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                                       )}
                                     </div>
                                   );
-                                } else {
-                                  if (editMode) {
-                                    return (
-                                      <div key={`${shift.id}-edit-icon`} className="flex justify-center items-center h-full">
-                                        <Edit3 size={16} className="mx-auto text-gray-400 group-hover:text-primary" />
-                                      </div>
-                                    );
-                                  } else {
-                                    return (
-                                      <span key={`${shift.id}-unassigned`} className="text-gray-400 text-lg">-</span>
-                                    );
-                                  }
                                 }
+                                // Unassigned cell: show Edit3 icon centered in the cell (edit mode only, on hover/focus)
+                                return (
+                                  <div key={`${shift.id}-edit-icon`} className="relative flex items-center justify-center w-full h-full group">
+                                    <span className="text-ashmocha/40 text-lg">-</span>
+                                    {editMode && (
+                                      <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 cursor-pointer">
+                                        <Edit3 size={20} className="text-ashmocha/40 group-hover:text-primary-foreground group-focus:text-primary-foreground" />
+                                      </span>
+                                    )}
+                                  </div>
+                                );
                               })
                             ) : templatesForCell.length > 0 && editMode ? (
                               <div className="flex justify-center items-center h-full">
-                                <Edit3 size={16} className="mx-auto text-gray-400 group-hover:text-primary" />
+                                <Edit3 size={16} className="mx-auto text-ashmocha/40 group-hover:text-primary-foreground" />
                               </div>
                             ) : (
-                              <span className={`text-gray-400 ${templatesForCell.length > 0 ? 'text-lg' : ''}`}>{templatesForCell.length > 0 ? '-' : null}</span>
+                              <span className={`text-ashmocha/40 ${templatesForCell.length > 0 ? 'text-lg' : ''}`}>{templatesForCell.length > 0 ? '-' : null}</span>
                             )}
                           </td>
                         );
@@ -593,7 +622,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
       {baristaTableData && renderRoleTableSection(baristaRoleName, baristaTableData, false)}
 
       {sideBySideRolesToRender.length > 0 && (
-        <div className="flex flex-col md:flex-row md:space-x-4 space-y-6 md:space-y-0">
+        <div className="flex flex-col md:flex-row md:space-x-12 space-y-8 md:space-y-0">
           {sideBySideRolesToRender.map(role => 
             renderRoleTableSection(role.name, role.data!, true)
           )}
