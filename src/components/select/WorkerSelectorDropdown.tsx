@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/popover"
 import * as PopoverPrimitive from "@radix-ui/react-popover"
 import { Worker, JobLevel } from '@/lib/types' 
+import useEligibleWorkers, { EligibleWorkerResponseItem } from '@/hooks/useEligibleWorkers';
 
 // Define NewShiftClientContext here or import from a shared location
 interface NewShiftClientContext {
@@ -39,14 +40,6 @@ interface WorkerSelectorDropdownProps {
   placeholder?: string
   popoverContainerRef?: RefObject<HTMLDivElement>;
   excludeWorkerId?: string | null;
-}
-
-interface EligibleWorkerResponseItem {
-    id: string;
-    first_name: string | null;
-    last_name: string | null;
-    preferred_name: string | null;
-    job_level: JobLevel;
 }
 
 const formatWorkerName = (worker: { first_name: string | null, last_name: string | null, preferred_name: string | null }): string => {
@@ -70,76 +63,15 @@ export function WorkerSelectorDropdown({
   popoverContainerRef,
   excludeWorkerId
 }: WorkerSelectorDropdownProps) {
-  const [eligibleWorkers, setEligibleWorkers] = useState<EligibleWorkerResponseItem[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // Use SWR hook for eligible workers
+  const { data: eligibleWorkers, isLoading, error } = useEligibleWorkers({
+    scheduledShiftId,
+    newShiftClientContext,
+    targetAssignmentType,
+    excludeWorkerId,
+    enabled: !disabled && !!scheduledShiftId,
+  });
   const [open, setOpen] = useState(false)
-
-  useEffect(() => {
-    // Determine if we should fetch and what the request body should be
-    let shouldFetch = false;
-    let apiRequestBody: object | null = null;
-
-    if (scheduledShiftId && scheduledShiftId.startsWith('new-shift-') && newShiftClientContext) {
-      // Case: New shift, temporary ID and full context are provided
-      shouldFetch = !disabled;
-      apiRequestBody = {
-        scheduledShiftId, // Pass the temporary "new-shift-..." ID
-        newShiftClientContext, // Pass the full context for the new shift
-        targetAssignmentType,
-        excludeWorkerId,
-      };
-    } else if (scheduledShiftId && !scheduledShiftId.startsWith('new-shift-')) {
-      // Case: Existing shift, ID is a UUID
-      shouldFetch = !disabled;
-      apiRequestBody = {
-        scheduledShiftId, // Pass the UUID
-        targetAssignmentType,
-        excludeWorkerId,
-      };
-    } else {
-      // Conditions not met to fetch (e.g., scheduledShiftId is null, or it's a new-shift- ID without context)
-      setEligibleWorkers([]);
-      setIsLoading(false); // Ensure loading is false if not fetching
-      setError(null);      // Clear any previous error
-      return;
-    }
-
-    if (!shouldFetch) {
-      setEligibleWorkers([]);
-      setIsLoading(false);
-      setError(null);
-      return;
-    }
-
-    const fetchEligibleWorkers = async () => {
-      if (!apiRequestBody) return; // Should not happen if shouldFetch is true
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(`/api/get-eligible-workers`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(apiRequestBody),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json()
-          throw new Error(errorData.error || `Error fetching workers: ${response.status}`)
-        }
-        const data: EligibleWorkerResponseItem[] = await response.json()
-        setEligibleWorkers(data)
-      } catch (e: any) {
-        console.error(`Failed to fetch eligible ${targetAssignmentType} workers:`, e)
-        setError(e.message || 'Failed to load workers.')
-        setEligibleWorkers([])
-      }
-      setIsLoading(false)
-    }
-
-    fetchEligibleWorkers()
-  }, [scheduledShiftId, newShiftClientContext, targetAssignmentType, disabled, excludeWorkerId])
 
   const handleSelect = (selectedWorkerId: string | null) => {
     if (!selectedWorkerId || selectedWorkerId === "__unassign__") {
@@ -164,6 +96,7 @@ export function WorkerSelectorDropdown({
             sunday: []
           }, 
           preferred_hours_per_week: null, // Assuming a default
+          birthday: null, // Added to satisfy Worker type
           created_at: new Date().toISOString(), 
         } as Worker);
       }
@@ -189,7 +122,7 @@ export function WorkerSelectorDropdown({
   }
 
   if (error && !open) {
-    return <p className={cn("text-red-500 text-xs h-10 flex items-center", className)}>Error: {error}</p>
+    return <p className={cn("text-errorred text-xs h-10 flex items-center", className)}>Error: {error.message || error.toString()}</p>
   }
 
   return (
@@ -199,11 +132,15 @@ export function WorkerSelectorDropdown({
       }}>
         <PopoverTrigger asChild>
           <Button
-            variant="outline"
+            variant="outline-static"
             role="combobox"
             aria-expanded={open}
             aria-label={displayValue}
-            className={cn("w-full justify-between", className, !currentWorkerId && "text-muted-foreground")}
+            className={cn(
+              "w-full justify-between hover:!bg-white border-input hover:ring-1 hover:ring-roseblush", 
+              className, 
+              !currentWorkerId && "text-muted-foreground"
+            )}
             disabled={disabled || isLoading || !scheduledShiftId}
           >
             <span className="truncate">{displayValue}</span>
@@ -234,6 +171,7 @@ export function WorkerSelectorDropdown({
                   <CommandItem
                     key="unassign-option"
                     value="__unassign__" 
+                    className="italic select-none text-muted-foreground cursor-pointer data-[selected=true]:bg-transparent"
                     onSelect={() => {
                       handleSelect(null);
                     }}
@@ -241,7 +179,7 @@ export function WorkerSelectorDropdown({
                     <Check
                       className={cn(
                         "mr-2 h-4 w-4",
-                        !currentWorkerId ? "opacity-100" : "opacity-0"
+                        "opacity-0"
                       )}
                     />
                     -- Select {targetAssignmentType} --
@@ -250,6 +188,7 @@ export function WorkerSelectorDropdown({
                     <CommandItem
                       key={worker.id}
                       value={worker.id} 
+                      className="select-none data-[selected=true]:bg-transparent hover:bg-accent/50"
                       onSelect={() => {
                         handleSelect(worker.id);
                       }}

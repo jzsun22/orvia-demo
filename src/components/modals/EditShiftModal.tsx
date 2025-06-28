@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input'
 import { useAppToast } from "@/lib/toast-service"; 
 import { APP_TIMEZONE, parseTime as parseAppTime } from '@/lib/scheduling/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
-import { capitalizeWords } from '@/lib/utils'; // Added import
+import { capitalizeWords, formatLocationName } from '@/lib/utils';
 
 // It's crucial that these environment variables are exposed to the client
 // by prefixing them with NEXT_PUBLIC_ in your .env.local file.
@@ -66,14 +66,14 @@ interface EditShiftModalProps {
   isOpen: boolean
   onClose: () => void
   shiftContext: ShiftClickContext | null; // Updated prop
-  onSaveSuccess: () => void; // Prop to call after successful save
+  onShiftUpdated: () => void; // Prop to call after successful save
 }
 
 const findAssignment = (assignments: ShiftAssignmentsWithWorker[], type: 'lead' | 'regular' | 'training') => {
   return assignments.find(a => a.assignment_type === type) || null;
 }
 
-export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }: EditShiftModalProps) {
+export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }: EditShiftModalProps) {
   const { showSuccessToast } = useAppToast(); // Added hook
   const [shiftDetails, setShiftDetails] = useState<EditableShiftDetails | null>(null)
   const [isLoading, setIsLoading] = useState(false)
@@ -271,9 +271,14 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
   // console.log('[EditShiftModal render] shiftDetails available:', !!shiftDetails);
   // console.log('[EditShiftModal render] Calculated primaryAssignmentType:', primaryAssignmentType);
   
-  const primaryAssignment = primaryAssignmentType ? findAssignment(draftAssignments, primaryAssignmentType) : null;
   const trainingAssignment = findAssignment(draftAssignments, 'training');
-
+  // This logic is now intentionally robust. It first trusts the `shiftType` from the API.
+  // If that doesn't yield an assignment (due to data inconsistencies where a 'non-lead' shift
+  // might have a 'lead' assignment), it falls back to finding the first non-training assignment.
+  const primaryAssignment = 
+    (primaryAssignmentType ? findAssignment(draftAssignments, primaryAssignmentType) : null) ??
+    (draftAssignments.find(a => a.assignment_type !== 'training') || null);
+  
   const validateAssignmentTime = useCallback((
     assignmentType: 'lead' | 'regular' | 'training',
     field: 'assigned_start' | 'assigned_end',
@@ -366,16 +371,16 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
   const canAddTraining = primaryAssignment && !trainingAssignment;
 
   const handleUnassignPrimaryAndTrainingFromDraft = () => {
-    if (!primaryAssignmentType) return; // Should not happen if button is visible
+    // We use the IDs from the `primaryAssignment` and `trainingAssignment` objects
+    // that are now correctly identified in the component's scope. This ensures
+    // we remove the right assignments regardless of any data inconsistencies.
+    const idsToRemove = new Set<string>();
+    if (primaryAssignment) idsToRemove.add(primaryAssignment.id);
+    if (trainingAssignment) idsToRemove.add(trainingAssignment.id);
 
-    setDraftAssignments(prev => {
-      // Filter out the primary assignment and any training assignment
-      return prev.filter(a => {
-        const isPrimary = a.assignment_type === primaryAssignmentType;
-        const isTraining = a.assignment_type === 'training';
-        return !isPrimary && !isTraining;
-      });
-    });
+    if (idsToRemove.size === 0) return;
+
+    setDraftAssignments(prev => prev.filter(a => !idsToRemove.has(a.id)));
     // Clear any time validation errors related to these removed assignments
     setTimeValidationErrors(prevErrors => ({
       ...prevErrors,
@@ -412,15 +417,14 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
 
   // Helper to format worker names consistently, similar to WorkerSelectorDropdown
   // (Consider moving to shared utils if Worker type is globally defined and accessible)
-  const formatWorkerNameWithLevel = (worker: { first_name?: string | null, last_name?: string | null, preferred_name?: string | null, job_level?: string | null } | null | undefined): string => {
+  const formatWorkerName = (worker: { first_name?: string | null, last_name?: string | null, preferred_name?: string | null } | null | undefined): string => {
     if (!worker) return "N/A";
     const firstName = worker.first_name || '';
     const lastName = worker.last_name || '';
-    const level = worker.job_level ? `-${worker.job_level}` : '';
     if (worker.preferred_name && worker.preferred_name.trim() !== '') {
-      return `${firstName} (${worker.preferred_name}) ${lastName}${level}`.trim().replace(/\s+/g, ' ');
+      return `${firstName} (${worker.preferred_name}) ${lastName}`.trim().replace(/\s+/g, ' ');
     }
-    return `${firstName} ${lastName}${level}`.trim().replace(/\s+/g, ' ');
+    return `${firstName} ${lastName}`.trim().replace(/\s+/g, ' ');
   };
 
   const handleAssignmentTimeChange = (assignmentType: 'lead' | 'regular' | 'training', field: 'assigned_start' | 'assigned_end', value: string) => {
@@ -495,7 +499,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
               variant="ghost" 
               size="sm" 
               onClick={handleUnassignPrimaryAndTrainingFromDraft} 
-              className="text-red-500 hover:text-red-700 h-7 px-2"
+              className="text-errorred hover:text-[#9A3E37] h-7 px-2"
               disabled={isLoading || isSaving}
             >
               <XCircle className="mr-1 h-4 w-4" /> Unassign
@@ -517,8 +521,8 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
         {assignment && assignment.workers && (
           <p className="text-xs text-muted-foreground ml-1">
             {assignment.is_manual_override && assignment.assigned_start && assignment.assigned_end && !isPrepBaristaShift // Show times only if not PrepBarista
-              ? `${formatWorkerNameWithLevel(assignment.workers)} (${formatTime12hr(assignment.assigned_start)} - ${formatTime12hr(assignment.assigned_end)})`
-              : formatWorkerNameWithLevel(assignment.workers)}
+              ? `${formatWorkerName(assignment.workers)} (${formatTime12hr(assignment.assigned_start)} - ${formatTime12hr(assignment.assigned_end)})`
+              : formatWorkerName(assignment.workers)}
           </p>
         )}
         {assignment && assignment.workers && !isPrepBaristaShift && ( // Hide time inputs for Prep Barista
@@ -548,7 +552,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
                 step="300"
               />
               <div className="min-h-[1.25rem] mt-1">
-                {timeValidationErrors.primary_end && <p className="text-xs text-red-500">{timeValidationErrors.primary_end}</p>}
+                {timeValidationErrors.primary_end && <p className="text-xs text-errorred">{timeValidationErrors.primary_end}</p>}
               </div>
             </div>
             {showResetButton && (
@@ -556,7 +560,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
                 variant="link"
                 size="sm"
                 onClick={() => handleResetAssignmentTimes(primaryAssignmentType)}
-                className="h-9 px-2 text-xs text-blue-600 hover:text-blue-800 self-end mb-[1.25rem]"
+                className="h-9 px-2 text-xs text-ashmocha hover:text-[#655D59] self-end mb-[1.25rem]"
               >
                 Reset Times
               </Button>
@@ -583,7 +587,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
         <div className="flex justify-between items-center mb-1">
           <h4 className="font-semibold text-md">(Optional) Training Worker:</h4>
           {assignment && (
-            <Button variant="ghost" size="sm" onClick={() => handleTrainingWorkerChange(null)} className="text-red-500 hover:text-red-700 h-7 px-2">
+            <Button variant="ghost" size="sm" onClick={() => handleTrainingWorkerChange(null)} className="text-errorred hover:text-[#9A3E37] h-7 px-2">
               <XCircle className="mr-1 h-4 w-4" /> Remove
             </Button>
           )}
@@ -607,8 +611,8 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
               <>
                 <p className="text-xs text-muted-foreground ml-1">
                   {assignment.is_manual_override && assignment.assigned_start && assignment.assigned_end
-                    ? `${formatWorkerNameWithLevel(assignment.workers)} (${formatTime12hr(assignment.assigned_start)} - ${formatTime12hr(assignment.assigned_end)})`
-                    : formatWorkerNameWithLevel(assignment.workers)}
+                    ? `${formatWorkerName(assignment.workers)} (${formatTime12hr(assignment.assigned_start)} - ${formatTime12hr(assignment.assigned_end)})`
+                    : formatWorkerName(assignment.workers)}
                 </p>
                 <div className="flex gap-2 mt-2 items-start">
                   <div className="flex flex-col">
@@ -622,7 +626,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
                       step="300"
                     />
                     <div className="min-h-[1.25rem] mt-1">
-                      {timeValidationErrors.training_start && <p className="text-xs text-red-500">{timeValidationErrors.training_start}</p>}
+                      {timeValidationErrors.training_start && <p className="text-xs text-errorred">{timeValidationErrors.training_start}</p>}
                     </div>
                   </div>
                   <div className="flex flex-col">
@@ -636,7 +640,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
                       step="300"
                     />
                     <div className="min-h-[1.25rem] mt-1">
-                      {timeValidationErrors.training_end && <p className="text-xs text-red-500">{timeValidationErrors.training_end}</p>}
+                      {timeValidationErrors.training_end && <p className="text-xs text-errorred">{timeValidationErrors.training_end}</p>}
                     </div>
                   </div>
                   {showResetButton && (
@@ -644,7 +648,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
                       variant="link"
                       size="sm"
                       onClick={() => handleResetAssignmentTimes('training')}
-                      className="h-9 px-2 text-xs text-blue-600 hover:text-blue-800 self-end mb-[1.25rem]"
+                      className="h-9 px-2 text-xs text-ashmocha hover:text-[#655D59] self-end mb-[1.25rem]"
                     >
                       Reset Times
                     </Button>
@@ -808,7 +812,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
         ? "New shift assigned successfully."
         : "Shift updated successfully.";
       showSuccessToast(successMessage); // Show success toast
-      onSaveSuccess(); 
+      onShiftUpdated();
       handleClose(); 
     } catch (e: any) {
       console.error('Failed to save shift changes:', e);
@@ -828,19 +832,17 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onSaveSuccess }:
         className="sm:max-w-[525px]"
         onPointerDownOutside={(event) => {
           if ((event.target as HTMLElement)?.closest('[data-radix-interactable-popover]')) {
-            console.log('[EditShiftModal] Dialog onPointerDownOutside: Interaction on interactable popover, preventing default.');
             event.preventDefault();
           } else {
-            console.log('[EditShiftModal] Dialog onPointerDownOutside: Normal outside interaction.');
           }
         }}
       >
         <DialogHeader>
-          <DialogTitle>{dialogTitle}</DialogTitle>
+          <DialogTitle className="mb-1">{dialogTitle}</DialogTitle>
           {shiftDetails && (
             <DialogDescription>
               {dialogPositionName}
-              {' @ '}{dialogLocationName}
+              {' @ '}{formatLocationName(dialogLocationName)}
               {' ('}{dialogDescriptionDate}, {dialogDescriptionTime})
               {isPrepBaristaShift && <span className="block text-xs text-muted-foreground mt-1">(Note: This is a paired Prep/Barista shift. Worker will cover both AM/PM blocks.)</span>}
             </DialogDescription>

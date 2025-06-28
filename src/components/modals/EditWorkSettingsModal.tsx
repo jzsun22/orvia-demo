@@ -12,7 +12,8 @@ import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
 import { Location, Position } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
-import { capitalizeWords } from '@/lib/utils';
+import { formatLocationName } from '@/lib/utils';
+import { Separator } from 'react-aria-components';
 
 interface FetchedLocationPosition {
   id: string;
@@ -160,11 +161,16 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-[#f8f9f7]">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-manrope font-semibold">Edit Work Settings for {employee.first_name} {employee.last_name}</DialogTitle>
+      <DialogContent className="sm:max-w-md bg-background">
+        <DialogHeader className="pb-1">
+          <DialogTitle className="text-lg font-manrope font-medium">
+            Edit Work Settings for {' '}
+            <span className="font-bold">
+            {employee.first_name} {employee.last_name}
+            </span>
+          </DialogTitle>
         </DialogHeader>
-        {error && <p className="text-sm text-red-500 text-center mb-4">{error}</p>}
+        {error && <p className="text-sm text-errorred text-center mb-4">{error}</p>}
         {loading && !error && <p className="text-sm text-muted-foreground text-center mb-4">Loading data...</p>}
         
         {!loading && !error && (
@@ -188,7 +194,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
                             field.onChange(newValue);
                           }}
                         />
-                        <Label htmlFor={`location-${location.id}`} className="font-normal">{capitalizeWords(location.name)}</Label>
+                        <Label htmlFor={`location-${location.id}`} className="font-normal">{formatLocationName(location.name)}</Label>
                       </div>
                     ))}
                   </div>
@@ -244,7 +250,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
                 )}
             />
 
-            <div className="flex justify-end gap-2 border-t border-border pt-6 mt-6">
+            <div className="flex justify-end gap-2 pt-8 mt-6">
               <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                 Cancel
               </Button>

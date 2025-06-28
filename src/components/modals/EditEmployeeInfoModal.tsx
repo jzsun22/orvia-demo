@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useForm, SubmitHandler, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogContent,
@@ -22,6 +21,21 @@ import { JobLevel } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { Switch } from '@/components/ui/switch';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { CalendarIcon } from 'lucide-react';
+import {
+  DatePicker,
+  Dialog,
+  Heading,
+  Popover,
+  Modal,
+  ModalOverlay,
+  Group,
+  Button as ButtonRAC,
+} from "react-aria-components";
+import { Calendar } from '@/components/ui/calendar-rac'
+import { DateInput } from '@/components/ui/datefield-rac'
+import { fromDate, getLocalTimeZone } from "@internationalized/date";
 
 interface ExtendedWorker {
   id: string;
@@ -62,7 +76,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
   } = useForm({
     resolver: zodResolver(employeeInfoSchema),
   });
-  
+
   // Effect to reset form when modal opens or employee data changes
   useEffect(() => {
     if (isOpen && employee) {
@@ -73,7 +87,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
         job_level: employee.job_level,
         gender: employee.gender ?? undefined,
         birthday: employee.birthday ? new Date(`${employee.birthday}T00:00:00`) : undefined,
-        preferred_hours_per_week: employee.preferred_hours_per_week?.toString() ?? '',
+        preferred_hours_per_week: employee.preferred_hours_per_week ?? null,
         inactive: employee.inactive !== true,
       });
     }
@@ -122,7 +136,6 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
     // setShowDeleteDialog(true);
   };
 
-  /*
   const handleDeleteConfirm = async () => {
     try {
       setLoading(true);
@@ -152,184 +165,221 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
       setShowDeleteDialog(false);
     }
   };
-  */
 
   const handleClose = () => {
     reset();
     setError(null);
     onClose();
   };
-  
+
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-md bg-[#f8f9f7]">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-manrope font-semibold">Edit Personal Information</DialogTitle>
-          </DialogHeader>
-          {error && <p className="text-sm text-red-500 text-center mb-4">Error: {error}</p>}
-          
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="first_name">First Name</Label>
-                <Input id="first_name" {...register('first_name')} className={errors.first_name ? 'border-red-500' : ''} />
-                {errors.first_name && <p className="text-sm text-red-500">{errors.first_name.message}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="last_name">Last Name</Label>
-                <Input id="last_name" {...register('last_name')} className={errors.last_name ? 'border-red-500' : ''} />
-                {errors.last_name && <p className="text-sm text-red-500">{errors.last_name.message}</p>}
-              </div>
+    <Modal
+      isOpen={isOpen}
+      onOpenChange={handleClose}
+      isDismissable={true}
+    >
+      <ModalOverlay className="fixed inset-0 z-50 bg-black/80 data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0" />
+      <Dialog className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-6 shadow-lg data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:slide-in-from-bottom-4 data-[entering]:zoom-in-95 data-[exiting]:slide-out-to-bottom-4 data-[exiting]:zoom-out-95">
+        <Heading className="text-xl font-manrope font-semibold mb-4">Edit Personal Information</Heading>
+        {error && <p className="text-sm text-errorred text-center mb-4">Error: {error}</p>}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="first_name">First Name</Label>
+              <Input id="first_name" {...register('first_name')} className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.first_name ? 'border-errorred' : '')} />
+              {errors.first_name && <p className="text-sm text-errorred">{errors.first_name.message}</p>}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="last_name">Last Name</Label>
+              <Input id="last_name" {...register('last_name')} className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none bg-white shadow-none", errors.last_name ? 'border-errorred' : '')} />
+              {errors.last_name && <p className="text-sm text-errorred">{errors.last_name.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="preferred_name">Preferred Name</Label>
+              <Input
+                id="preferred_name" {...register('preferred_name')}
+                className="border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none"
+                placeholder="optional" />
+            </div>
+
+
+            <div className="space-y-2">
+              <Label htmlFor="gender">Gender</Label>
+              <Controller
+                name="gender"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    key={field.value}
+                    onValueChange={field.onChange}
+                    value={field.value ?? ''}
+                  >
+                    <SelectTrigger className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
+                      {GENDERS.map((gender) => (
+                        <SelectItem key={gender} value={gender} className="hover:bg-accent/50">
+                          {gender.charAt(0).toUpperCase() + gender.slice(1).replace('_', ' ')}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="birthday">Birthday</Label>
+              <Controller
+                name="birthday"
+                control={control}
+                render={({ field }) => (
+                  <DatePicker
+                    granularity="day"
+                    value={field.value ? fromDate(field.value, getLocalTimeZone()) : null}
+                    onChange={(date) => field.onChange(date ? new Date(date.year, date.month - 1, date.day) : undefined)}
+                    className="*:not-first:mt-2"
+                  >
+                    <div className="flex">
+                      <Group className="w-full">
+                        <DateInput className="pe-9 !bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none hover:ring-1 hover:ring-roseblush" />
+                      </Group>
+                      <ButtonRAC type="button" className="text-muted-foreground/80 hover:text-muted-foreground data-focus-visible:border-ring data-focus-visible:ring-ring/50 z-10 -ms-9 -me-px flex w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none data-focus-visible:ring-[3px]">
+                        <CalendarIcon size={16} />
+                      </ButtonRAC>
+                    </div>
+                    <Modal>
+                      <Popover
+                        className="!bg-white text-popover-foreground data-entering:animate-in data-exiting:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0 data-[entering]:zoom-in-95 data-[exiting]:zoom-out-95 data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 z-[60] rounded-lg border shadow-lg outline-hidden"
+                        offset={4}
+                      >
+                        <Dialog className="max-h-[inherit] overflow-auto p-2">
+                          <Calendar />
+                        </Dialog>
+                      </Popover>
+                    </Modal>
+                  </DatePicker>
+                )}
+              />
+              {errors.birthday && <p className="text-sm text-errorred">{errors.birthday.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="job_level">Job Level</Label>
+              <Controller
+                name="job_level"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    key={field.value}
+                    onValueChange={field.onChange}
+                    value={field.value ?? ''}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a job level" className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal" />
+                    </SelectTrigger>
+                    <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
+                      {JOB_LEVELS.map((level) => (
+                        <SelectItem key={level} value={level} className="hover:bg-accent/50">
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.job_level && <p className="text-sm text-errorred">{errors.job_level.message}</p>}
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="preferred_name">Nickname (optional)</Label>
-              <Input id="preferred_name" {...register('preferred_name')} />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                    <Label htmlFor="gender">Gender</Label>
-                    <Controller
-                        name="gender"
-                        control={control}
-                        render={({ field }) => (
-                            <Select
-                                onValueChange={field.onChange}
-                                value={field.value ?? ''}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select gender" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {GENDERS.map((gender) => (
-                                        <SelectItem key={gender} value={gender}>
-                                            {gender.charAt(0).toUpperCase() + gender.slice(1).replace('_', ' ')}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        )}
-                    />
-                </div>
-                <div className="space-y-2">
-                    <Label htmlFor="birthday">Birthday</Label>
-                    <Controller
-                        name="birthday"
-                        control={control}
-                        render={({ field }) => (
-                            <Input
-                                id="birthday"
-                                type="date"
-                                className={errors.birthday ? 'border-red-500' : ''}
-                                {...field}
-                                value={field.value ? format(field.value, 'yyyy-MM-dd') : ''}
-                            />
-                        )}
-                    />
-                    {errors.birthday && <p className="text-sm text-red-500">{errors.birthday.message}</p>}
-                </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="preferred_hours_per_week">Preferred hours per week (optional)</Label>
+              <Label htmlFor="preferred_hours_per_week">Preferred hours per week</Label>
               <Input
                 id="preferred_hours_per_week"
+                placeholder="optional"
                 type="number"
                 min="0"
                 max="40"
                 {...register('preferred_hours_per_week')}
-                className={errors.preferred_hours_per_week ? 'border-red-500' : ''}
+                className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none !bg-white placeholder:text-muted-foreground/80 shadow-none", errors.preferred_hours_per_week ? 'border-errorred' : '', 'bg-background')}
               />
               {errors.preferred_hours_per_week && (
-                <p className="text-sm text-red-500">{errors.preferred_hours_per_week.message}</p>
+                <p className="text-sm text-errorred">{errors.preferred_hours_per_week.message}</p>
               )}
             </div>
+          </div>
 
-            <div className="space-y-2">
-                <Label htmlFor="job_level">Job Level</Label>
-                <Controller
-                    name="job_level"
-                    control={control}
-                    render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                                <SelectValue placeholder="Select a job level" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {JOB_LEVELS.map((level) => (
-                                <SelectItem key={level} value={level}>
-                                    {level}
-                                </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    )}
-                />
-                {errors.job_level && <p className="text-sm text-red-500">{errors.job_level.message}</p>}
-            </div>
 
-            <Controller
-              name="inactive"
-              control={control}
-              render={({ field }) => (
-                <div className="space-y-2 pt-2">
-                  <Label htmlFor="active_status" className="text-base">Worker Status</Label>
-                  <div className="flex items-center space-x-3 p-3 border rounded-md bg-background">
-                    <Switch
-                      id="active_status"
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                    <Label htmlFor="active_status" className="font-normal text-sm cursor-pointer">
-                      {field.value ? 'Active' : 'Inactive'}
-                    </Label>
-                  </div>
-                  <p className="text-xs text-muted-foreground px-1">
+          <Controller
+            name="inactive"
+            control={control}
+            render={({ field }) => (
+              <div className="flex items-end justify-between pt-4">
+                <div className="space-y-1">
+                  <Label className="font-medium">
+                    Worker Status
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
                     Inactive workers are excluded from scheduling.
                   </p>
                 </div>
-              )}
-            />
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="active_status"
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                  <Label htmlFor="active_status" className="w-12 text-xs">
+                    {field.value ? 'Active' : 'Inactive'}
+                  </Label>
+                </div>
+              </div>
+            )}
+          />
 
-            <div className="flex justify-between items-center border-t border-border pt-6 mt-6">
-              <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={loading}>
-                Delete Employee
+
+          <div className="flex justify-between items-center pt-6 mt-6">
+            <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={loading}>
+              Delete Employee
+            </Button>
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                Cancel
               </Button>
-              <div className="flex gap-2">
-                <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+              <Button type="submit" disabled={loading} className='bg-deeproseblush hover:bg-deeproseblush/80'>
+                {loading ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+
+          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete {employee.first_name} {employee.last_name}? This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={loading}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Saving...' : 'Save Changes'}
+                <Button variant="destructive" onClick={handleDeleteConfirm} disabled={loading}>
+                  {loading ? 'Deleting...' : 'Yes, delete employee'}
                 </Button>
-              </div>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
-      {/*
-      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete {employee.first_name} {employee.last_name}? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={loading}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm} disabled={loading}>
-              {loading ? 'Deleting...' : 'Yes, delete employee'}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      */}
-    </>
+        </form>
+      </Dialog>
+    </Modal>
   );
 } 

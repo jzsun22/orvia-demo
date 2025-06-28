@@ -7,17 +7,24 @@ import { supabase } from '@/lib/supabase/client';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Plus, Pencil, Trash2 } from 'lucide-react';
 import { RecurringShiftModal } from './RecurringShiftModal';
-import { 
-  AlertDialog, 
-  AlertDialogAction, 
-  AlertDialogCancel, 
-  AlertDialogContent, 
-  AlertDialogDescription, 
-  AlertDialogFooter, 
-  AlertDialogHeader, 
-  AlertDialogTitle } from '@/components/ui/alert-dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@/components/ui/alert-dialog';
 import { useAppToast } from "@/lib/toast-service";
-import { formatLocationName } from '@/lib/utils';
+import { formatLocationName, cn } from '@/lib/utils';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 // Define the availability type to match the backend structure
 interface Availability {
@@ -118,7 +125,7 @@ const getAvailabilityForDay = (
 const capitalizeDay = (day: string): string => {
   if (!day) return '';
   // Ensure day is treated as lowercase before capitalizing first letter for consistency
-  const lowerDay = day.toLowerCase(); 
+  const lowerDay = day.toLowerCase();
   return lowerDay.charAt(0).toUpperCase() + lowerDay.slice(1);
 };
 
@@ -128,7 +135,7 @@ const formatTime = (time: string) => {
   const [hours, minutes] = time.split(':');
   const date = new Date();
   date.setHours(parseInt(hours), parseInt(minutes));
-  
+
   // Format to 12hr time
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -140,11 +147,11 @@ const formatTime = (time: string) => {
 export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: AvailabilityModalProps) {
   const { showSuccessToast } = useAppToast();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | string[] | null>(null);
   const [availability, setAvailability] = useState<Availability>({});
   const [selectedDay, setSelectedDay] = useState<string>(DAYS_OF_WEEK[0]);
   const [selectedOption, setSelectedOption] = useState<string>('all_day');
-  
+
   // Recurring shifts state
   const [recurringShifts, setRecurringShifts] = useState<RecurringShift[]>([]);
   const [isRecurringShiftModalOpen, setIsRecurringShiftModalOpen] = useState(false);
@@ -154,6 +161,13 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
 
   // State for location hours (morning cutoffs)
   const [locationHoursData, setLocationHoursData] = useState<LocationHour[]>([]);
+
+  // Sort recurring shifts by week order (Monday to Sunday)
+  const sortedRecurringShifts = [...recurringShifts].sort(
+    (a, b) =>
+      DAYS_OF_WEEK.indexOf(a.day_of_week.toLowerCase()) -
+      DAYS_OF_WEEK.indexOf(b.day_of_week.toLowerCase())
+  );
 
   // Initialize availability with defaults or existing data
   useEffect(() => {
@@ -239,7 +253,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
       const transformedData = data?.map(shift => {
         const positionObject = Array.isArray(shift.position) ? shift.position[0] : shift.position;
         const positionName = positionObject?.name || 'Unknown';
-        
+
         const locationObject = Array.isArray(shift.location) ? shift.location[0] : shift.location;
         const locationName = locationObject?.name || 'Unknown Location';
 
@@ -276,7 +290,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         .select('location_id, day_of_week, morning_cutoff');
 
       if (fetchError) throw fetchError;
-      
+
       setLocationHoursData(data || []);
     } catch (err: any) {
       console.error('Error fetching location hours:', err);
@@ -302,10 +316,10 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
 
   const handleOptionChange = (option: string) => {
     setSelectedOption(option);
-    
+
     // Map the selected option to the appropriate availability array
     let availabilityArray: string[] = [];
-    
+
     switch (option) {
       case 'all_day':
         availabilityArray = ['all_day'];
@@ -336,7 +350,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
       if (!Array.isArray(dayAvailability)) {
         return false;
       }
-      
+
       // Check that each array contains valid values
       for (const value of dayAvailability) {
         if (!['morning', 'afternoon', 'all_day'].includes(value)) {
@@ -344,7 +358,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         }
       }
     }
-    
+
     return true;
   };
 
@@ -374,7 +388,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         const locationHour = locationHoursData.find(
           (lh) => lh.location_id === shift.location_id && lh.day_of_week.toLowerCase() === shift.day_of_week.toLowerCase()
         );
-        
+
         const cutoffTime = locationHour?.morning_cutoff; // HH:mm or null
         const cutoffMinutes = cutoffTime ? timeToMinutes(cutoffTime) : undefined;
         const shiftStartMinutes = timeToMinutes(shift.start_time);
@@ -413,9 +427,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
       }
 
       if (conflictingShiftsMessages.length > 0) {
-        setError(
-          `Availability conflicts with one or more recurring shifts:\n- ${conflictingShiftsMessages.join("\n- ")}`
-        );
+        setError(conflictingShiftsMessages);
         setLoading(false);
         return;
       }
@@ -470,7 +482,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
 
     try {
       setLoading(true);
-      
+
       // This is a placeholder for the actual API call
       // In a real implementation, you would delete from the database
       const { error } = await supabase
@@ -501,13 +513,13 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
           .from('location_hours')
           .select('morning_cutoff')
           .eq('location_id', savedShift.location_id)
-          .eq('day_of_week', savedShift.day_of_week.toLowerCase()) // Ensure day is lowercase for matching DB
+          .eq('day_of_week', savedShift.day_of_week.toLowerCase())
           .single();
 
         if (locationHourError && locationHourError.code !== 'PGRST116') { // PGRST116: 'single' row not found
           throw locationHourError;
         }
-        
+
         const morningCutoff = locationHourData?.morning_cutoff;
 
         // Combine existing shifts for the day with the new shift
@@ -518,7 +530,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         ];
 
         const suggestedAvailability = getAvailabilityForDay(shiftsForDay, morningCutoff);
-        
+
         // Update availability, respecting 'all_day' precedence
         setAvailability(prev => {
           const currentDayAvailability = prev[dayOfNewShift] || [];
@@ -536,190 +548,250 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
     }
 
     // Refresh the list of recurring shifts from the database
-    await fetchRecurringShifts(); 
+    await fetchRecurringShifts();
     setIsRecurringShiftModalOpen(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px] bg-[#f8f9f7]">
+      <DialogContent className="sm:max-w-[600px] bg-background">
         <DialogHeader>
-          <DialogTitle className="text-xl font-manrope font-semibold">
-            Set Availability for {employee.first_name} {employee.last_name}
+          <DialogTitle className="text-xl font-manrope font-medium">
+            Set Availability for {' '}
+            <span className="font-bold">
+              {employee.first_name} {employee.last_name}
+            </span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="grid grid-cols-7 gap-2">
-            {DAYS_OF_WEEK.map((day) => (
-              <button
-                key={day}
-                onClick={() => setSelectedDay(day)}
-                className={`p-2 text-sm rounded-md transition-colors ${
-                  selectedDay === day
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
-                }`}
-              >
-                {capitalizeDay(day).slice(0, 3)}.
-              </button>
-            ))}
-          </div>
+        <Accordion type="single" collapsible defaultValue="item-1" className="w-full">
+          <AccordionItem value="item-1" className="my-2">
+            <AccordionTrigger className="text-lg font-medium text-ashmocha">Availability Settings</AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-6 pt-0 pb-2">
+                <div className="grid grid-cols-7 gap-2">
+                  {DAYS_OF_WEEK.map((day) => (
+                    <button
+                      key={day}
+                      onClick={() => setSelectedDay(day)}
+                      className={`p-2 text-sm rounded-md transition-colors ${selectedDay === day
+                        ? 'bg-roseblush text-charcoalcocoa border-[1.5px] border-deeproseblush focus-visible:outline-none focus-visible:ring-ring focus-visible:ring-2'
+                        : 'bg-oatbeige text-charcoalcocoa hover:bg-roseblush/60 hover:shadow-sm focus-visible:outline-none focus-visible:ring-ring focus-visible:ring-2'
+                        }`}
+                    >
+                      {capitalizeDay(day).slice(0, 3)}.
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-2">
+                  <h3 className="font-medium text-base pb-2">Availability for {'  '}
+                    <span className="text-deeproseblush">
+                      {capitalizeDay(selectedDay)}
+                    </span>
+                  </h3>
+                  <div className="space-y-3">
+                    {AVAILABILITY_OPTIONS.map((option) => (
+                      <label
+                        key={option.value}
+                        htmlFor={`option-${option.value}`}
+                        className="flex items-center cursor-pointer select-none"
+                      >
+                        <input
+                          type="radio"
+                          id={`option-${option.value}`}
+                          name="availability"
+                          value={option.value}
+                          checked={selectedOption === option.value}
+                          onChange={() => handleOptionChange(option.value)}
+                          className="peer sr-only"
+                        />
+                        <span
+                          className={`
+                            h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200
+                          `}
+                        >
+                          <span
+                            className={`
+                              h-2.5 w-2.5 rounded-full
+                              ${selectedOption === option.value ? 'bg-accent' : 'bg-transparent'}
+                              transition
+                            `}
+                          />
+                        </span>
+                        <span 
+                        className={cn("text-sm font-bold transition-colors duration-200",
+                          selectedOption === option.value ? "text-charcoalcocoa" : "text-ashmocha font-normal"
+                        )}>
+                          {option.label}
+                          </span>
+                        {option.tooltip && (
+                          <TooltipProvider>
+                            <Tooltip delayDuration={100}>
+                              <TooltipTrigger asChild>
+                                <button
+                                  type="button"
+                                  tabIndex={-1}
+                                  className="ml-2 text-ashmocha/60 hover:text-ashmocha"
+                                  onClick={e => e.preventDefault()}
+                                >
+                                  <Info className="h-4 w-4" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="text-charcoalcocoa">{option.tooltip}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                      </label>
+                    ))}
+                  </div>
+                </div>
 
-          <div className="space-y-4">
-            <h3 className="font-medium">Availability for {capitalizeDay(selectedDay)}</h3>
-            <div className="space-y-3">
-              {AVAILABILITY_OPTIONS.map((option) => (
-                <div key={option.value} className="flex items-center">
-                  <input
-                    type="radio"
-                    id={`option-${option.value}`}
-                    name="availability"
-                    value={option.value}
-                    checked={selectedOption === option.value}
-                    onChange={() => handleOptionChange(option.value)}
-                    className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
-                  />
-                  <label
-                    htmlFor={`option-${option.value}`}
-                    className="ml-2 text-sm font-medium text-gray-700"
-                  >
-                    {option.label}
-                  </label>
-                  {option.tooltip && (
-                    <TooltipProvider>
-                      <Tooltip delayDuration={100}>
-                        <TooltipTrigger asChild>
-                          <button className="ml-2 text-gray-400 hover:text-gray-500">
-                            <Info className="h-4 w-4" />
-                          </button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>{option.tooltip}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
+                {/* Summary Section */}
+                <div className="space-y-4">
+                  <div className="border-t border-border w-1/2 mx-auto" />
+                  <h3 className="font-medium py-2 text-base">Current Availability Summary</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    {DAYS_OF_WEEK.map((day) => {
+                      const dayAvailability = availability[day] || [];
+                      let displayLabel = 'Not Set';
+
+                      if (dayAvailability.includes('all_day')) {
+                        displayLabel = 'All Day';
+                      } else if (dayAvailability.includes('morning')) {
+                        displayLabel = 'Morning Only';
+                      } else if (dayAvailability.includes('afternoon')) {
+                        displayLabel = 'Afternoon Only';
+                      } else if (dayAvailability.length === 0) {
+                        displayLabel = 'Not Available';
+                      }
+
+                      // Determine styling based on displayLabel
+                      const labelClass =
+                        displayLabel === "Not Available"
+                          ? "text-sm text-ashmocha/60 font-normal"
+                          : "text-sm text-deeproseblush font-bold";
+
+                      return (
+                        <div key={day} className="flex justify-between items-center">
+                          <span className="text-sm font-medium uppercase">{capitalizeDay(day)}</span>
+                          <span className={labelClass}>{displayLabel}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+          <AccordionItem value="item-2" className="border-b-0">
+            <AccordionTrigger className="text-lg font-medium text-ashmocha">Recurring Shifts</AccordionTrigger>
+            <AccordionContent>
+              {/* Recurring Shifts Section */}
+              <div className="space-y-4 pt-2">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-medium text-base">Assigned Recurring Shifts</h3>
+                  {recurringShifts.length === 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleAddRecurringShift}
+                      className="flex items-center gap-1"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Recurring Shift
+                    </Button>
                   )}
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {error && (
-            <p className="text-sm text-red-500">{error}</p>
-          )}
-
-          {/* Summary Section */}
-          <div className="mt-6 space-y-4 border-t border-border pt-6">
-            <h3 className="font-medium">Current Availability Summary</h3>
-            <div className="grid grid-cols-2 gap-4">
-              {DAYS_OF_WEEK.map((day) => {
-                const dayAvailability = availability[day] || [];
-                let displayLabel = 'Not Set';
-                
-                if (dayAvailability.includes('all_day')) {
-                  displayLabel = 'All Day';
-                } else if (dayAvailability.includes('morning')) {
-                  displayLabel = 'Morning Only';
-                } else if (dayAvailability.includes('afternoon')) {
-                  displayLabel = 'Afternoon Only';
-                } else if (dayAvailability.length === 0) {
-                  displayLabel = 'Not Available';
-                }
-                
-                return (
-                  <div key={day} className="flex justify-between items-center">
-                    <span className="text-sm font-medium">{capitalizeDay(day)}</span>
-                    <span className="text-sm text-gray-500">{displayLabel}</span>
+                {recurringShifts.length === 0 ? (
+                  <div className="text-center py-6 text-sm text-gray-500">
+                    No recurring shifts set
                   </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Recurring Shifts Section */}
-          <div className="mt-6 space-y-4 border-t border-border pt-6">
-            <div className="flex justify-between items-center">
-              <h3 className="font-medium">Recurring Shifts</h3>
-              {recurringShifts.length === 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={handleAddRecurringShift}
-                  className="flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add Recurring Shift
-                </Button>
-              )}
-            </div>
-
-            {recurringShifts.length === 0 ? (
-              <div className="text-center py-6 text-sm text-gray-500">
-                No recurring shifts set
-              </div>
-            ) : (
-              <div className={`space-y-3 ${ 
-                // Determine scroll threshold and max height based on error presence
-                (error && recurringShifts.length > 2) || (!error && recurringShifts.length > 3) 
-                ? `overflow-y-auto ${error ? 'max-h-40' : 'max-h-60'} scrollbar scrollbar-thumb-gray-300 scrollbar-track-gray-100` 
-                : '' 
-              }`}>
-                {recurringShifts.map((shift) => (
-                  <div 
-                    key={shift.id} 
-                    className="group flex justify-between items-center p-3 bg-white rounded-md shadow-sm hover:shadow-md transition-shadow"
-                  >
-                    <div className="space-y-1">
-                      <div className="font-medium">{capitalizeDay(shift.day_of_week)}</div>
-                      <div className="text-sm text-gray-500">
-                        {formatLocationName(shift.location_name)} • {shift.position_name} • {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
-                        {shift.assignment_type === 'lead' && (
-                          <span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Lead</span>
-                        )}
+                ) : (
+                  <div className={`space-y-4 ${
+                    // Determine scroll threshold and max height based on error presence
+                    (error && recurringShifts.length > 2) || (!error && recurringShifts.length > 3)
+                      ? `overflow-y-auto ${error ? 'max-h-40' : 'max-h-60'} scrollbar scrollbar-thumb-gray-300 scrollbar-track-gray-100`
+                      : ''
+                    }`}>
+                    {sortedRecurringShifts.map((shift) => (
+                      <div
+                        key={shift.id}
+                        className="group flex justify-between items-center p-4 bg-oatbeige border border-verylightbeige/50 rounded-md shadow-sm hover:shadow-md transition-shadow"
+                      >
+                        <div className="space-y-1">
+                          <div className="font-medium">{capitalizeDay(shift.day_of_week)}</div>
+                          <div className="text-xs text-ashmocha">
+                            {formatLocationName(shift.location_name)} • {shift.position_name} • {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                            {shift.assignment_type === 'lead' && (
+                              <span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Lead</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-pistachiomist/80"
+                            onClick={() => handleEditRecurringShift(shift)}
+                          >
+                            <Pencil className="h-4 w-4" strokeWidth={1.25} />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="hover:bg-errorred/20"
+                            onClick={() => handleDeleteRecurringShift(shift)}
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.25} />
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleEditRecurringShift(shift)}
+                    ))}
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAddRecurringShift}
+                        className="flex items-center gap-1"
                       >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleDeleteRecurringShift(shift)}
-                      >
-                        <Trash2 className="h-4 w-4" />
+                        <Plus className="h-4 w-4" strokeWidth={1.25} />
+                        Add Recurring Shift
                       </Button>
                     </div>
                   </div>
-                ))}
-                <div className="flex justify-end">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleAddRecurringShift}
-                    className="flex items-center gap-1"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Add Recurring Shift
-                  </Button>
-                </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+
+        {error && (
+          <div className="text-sm text-errorred pt-4">
+            {typeof error === 'string' ? (
+              <p>{error}</p>
+            ) : (
+              <div>
+                <p className="font-medium">Availability conflicts with one or more recurring shifts:</p>
+                <ul className="list-disc list-inside pl-4 mt-1 space-y-1">
+                  {error.map((msg, index) => (
+                    <li key={index}>{msg}</li>
+                  ))}
+                </ul>
               </div>
             )}
           </div>
+        )}
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </div>
+        <div className="flex justify-end gap-2 pt-8">
+          <Button variant="outline" onClick={handleClose}>
+            Cancel
+          </Button>
+          <Button onClick={handleSave} disabled={loading}>
+            {loading ? 'Saving...' : 'Save Changes'}
+          </Button>
         </div>
       </DialogContent>
 

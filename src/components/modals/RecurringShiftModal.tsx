@@ -42,7 +42,7 @@ const formatTime = (time: string) => {
   const [hours, minutes] = time.split(':');
   const date = new Date();
   date.setHours(parseInt(hours), parseInt(minutes));
-  
+
   // Format to 12hr time
   return date.toLocaleTimeString('en-US', {
     hour: 'numeric',
@@ -57,10 +57,10 @@ const capitalizeDay = (day: string) => {
   return DAYS_OF_WEEK.find(d => d.toLowerCase() === lowercaseDay) || day;
 };
 
-export function RecurringShiftModal({ 
-  isOpen, 
-  onClose, 
-  onSuccess, 
+export function RecurringShiftModal({
+  isOpen,
+  onClose,
+  onSuccess,
   employeeId,
   shift,
   isEditing,
@@ -73,8 +73,8 @@ export function RecurringShiftModal({
   const [allPositions, setAllPositions] = useState<{ id: string; name: string }[]>([]);
   const [filteredPositions, setFilteredPositions] = useState<{ id: string; name: string }[]>([]);
   const [allShiftTemplates, setAllShiftTemplates] = useState<{ id: string; start_time: string; end_time: string }[]>([]);
-  const [filteredShiftTemplates, setFilteredShiftTemplates] = useState<{ id: string; start_time: string; end_time: string }[]>([]);
-  
+  const [filteredShiftTemplates, setFilteredShiftTemplates] = useState<{ id: string; start_time: string; end_time: string; lead_type: string | null }[]>([]);
+
   // Form state
   const [dayOfWeek, setDayOfWeek] = useState<string>('');
   const [locationId, setLocationId] = useState<string>('');
@@ -82,6 +82,7 @@ export function RecurringShiftModal({
   const [startTime, setStartTime] = useState<string>('');
   const [endTime, setEndTime] = useState<string>('');
   const [assignmentType, setAssignmentType] = useState<'lead' | 'regular' | 'training'>('regular');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
 
   // Reset all form state when modal closes
   useEffect(() => {
@@ -92,11 +93,24 @@ export function RecurringShiftModal({
       setStartTime('');
       setEndTime('');
       setAssignmentType('regular');
+      setSelectedTemplateId('');
       setFilteredPositions([]);
       setFilteredShiftTemplates([]);
       setError(null);
     }
   }, [isOpen]);
+
+  // Initialize form state from shift prop in edit mode
+  useEffect(() => {
+    if (isEditing && shift) {
+      setDayOfWeek(capitalizeDay(shift.day_of_week));
+      setLocationId(shift.location_id);
+      setPositionId(shift.position_id);
+      setStartTime(shift.start_time);
+      setEndTime(shift.end_time);
+      setAssignmentType(shift.assignment_type);
+    }
+  }, [isEditing, shift]);
 
   // Fetch locations, positions, and shift templates
   useEffect(() => {
@@ -105,7 +119,7 @@ export function RecurringShiftModal({
     console.log('Modal opened, initializing data...');
     setLoading(true);
     setError(null);
-    
+
     const loadInitialData = async () => {
       try {
         // Fetch worker-specific locations
@@ -115,7 +129,7 @@ export function RecurringShiftModal({
           .eq('worker_id', employeeId);
 
         if (workerLocationsError) throw workerLocationsError;
-        
+
         const fetchedLocations = workerLocationsData.map(wl => wl.location).filter(Boolean) as Location[];
         setLocations(fetchedLocations);
         console.log('Loaded worker-specific locations:', fetchedLocations);
@@ -134,46 +148,13 @@ export function RecurringShiftModal({
         if (workerPositionsError) throw workerPositionsError;
 
         const workerPositions = workerPositionsData.map(wp => wp.position).filter(Boolean);
-        
+
         if (!workerPositions) {
           throw new Error('No positions data received for this worker');
         }
 
         console.log('Loaded worker-specific positions:', workerPositions);
         setAllPositions(workerPositions as { id: string; name: string }[]);
-
-        // For edit mode, always fetch fresh data from recurring_shift_assignments
-        if (isEditing && shift?.id) {
-          // Load the recurring shift assignment with position information
-          const { data: shiftData, error: shiftError } = await supabase
-            .from('recurring_shift_assignments')
-            .select(`
-              *,
-              position:positions (
-                id,
-                name
-              )
-            `)
-            .eq('id', shift.id)
-            .single();
-
-          if (shiftError) throw shiftError;
-
-          if (!shiftData) {
-            throw new Error('No shift data received');
-          }
-
-          console.log('Loaded shift data with position:', shiftData);
-
-          // Set initial form state from shiftData
-          const matchingLocation = (fetchedLocations as Location[]).find(loc => loc.name === shiftData.location_name);
-          setDayOfWeek(capitalizeDay(shiftData.day_of_week));
-          setLocationId(matchingLocation?.id || ''); // Set ID, fallback to empty
-          setPositionId(shiftData.position_id);
-          setAssignmentType(shiftData.assignment_type as 'lead' | 'regular' | 'training');
-          setStartTime(shiftData.start_time || ''); // Set initial times
-          setEndTime(shiftData.end_time || '');
-        }
       } catch (err) {
         console.error('Error loading initial data:', err);
         setError('Failed to load form data. Please try again.');
@@ -183,21 +164,7 @@ export function RecurringShiftModal({
     };
 
     loadInitialData();
-  }, [isOpen, isEditing, shift]);
-
-  // Remove the form initialization effect since we now handle it in loadInitialData
-  // and we want to avoid any cached state
-  useEffect(() => {
-    if (!isEditing) {
-      // Reset form for new shift
-      setDayOfWeek('');
-      setLocationId('');
-      setPositionId('');
-      setStartTime('');
-      setEndTime('');
-      setAssignmentType('regular');
-    }
-  }, [isEditing]);
+  }, [isOpen, employeeId]);
 
   // Update filtered shift templates when location and position change (for both new and edit modes)
   useEffect(() => {
@@ -218,14 +185,19 @@ export function RecurringShiftModal({
   useEffect(() => {
     if (!startTime) {
       setEndTime('');
+      setSelectedTemplateId('');
       return;
     }
     // Find all end times for the selected start time
     const endTimeOptions = filteredShiftTemplates.filter(template => template.start_time === startTime);
     if (endTimeOptions.length === 1) {
-      setEndTime(endTimeOptions[0].end_time);
+      const template = endTimeOptions[0];
+      setEndTime(template.end_time);
+      setSelectedTemplateId(template.id);
+      setAssignmentType(template.lead_type ? 'lead' : 'regular');
     } else {
       setEndTime('');
+      setSelectedTemplateId('');
     }
   }, [startTime, filteredShiftTemplates]);
 
@@ -240,7 +212,7 @@ export function RecurringShiftModal({
       if (locationPositionsError) throw locationPositionsError;
       console.log('Location positions:', locationPositions);
 
-      const positionsForLocation = allPositions.filter(pos => 
+      const positionsForLocation = allPositions.filter(pos =>
         locationPositions?.some(lp => lp.position_id === pos.id)
       );
       console.log('Filtered positions:', positionsForLocation);
@@ -282,43 +254,34 @@ export function RecurringShiftModal({
   const fetchShiftTemplatesForLocationAndPosition = async (locationId: string, positionId: string) => {
     try {
       console.log('Fetching templates for:', { locationId, positionId, dayOfWeek });
-      
+
       // Query shift templates with the correct column names
       const { data, error } = await supabase
         .from('shift_templates')
-        .select('id, start_time, end_time, days_of_week')
+        .select('id, start_time, end_time, days_of_week, lead_type')
         .eq('location_id', locationId)
         .eq('position_id', positionId);
 
       if (error) throw error;
-      
+
       console.log('Raw templates data:', data);
-      
+
       // Filter templates to only include those for the selected day of week
       const templatesForDay = data?.filter(template => {
         if (!template.days_of_week || !Array.isArray(template.days_of_week)) {
           console.log('Template missing days_of_week or not an array:', template);
           return false;
         }
-        
+
         // Convert both to lowercase for comparison
         const selectedDay = dayOfWeek.toLowerCase();
         return template.days_of_week.some(day => day.toLowerCase() === selectedDay);
       }) || [];
-      
+
       console.log('Filtered templates for day:', templatesForDay);
 
-      // Remove duplicates based on start_time
-      const uniqueTemplates = templatesForDay.reduce((acc, current) => {
-        const exists = acc.find(item => item.start_time === current.start_time);
-        if (!exists) {
-          acc.push(current);
-        }
-        return acc;
-      }, [] as typeof templatesForDay);
-      
-      // Sort the unique templates chronologically by start_time
-      uniqueTemplates.sort((a, b) => {
+      // Sort the templates chronologically by start_time
+      templatesForDay.sort((a, b) => {
         const [aHours, aMinutes] = a.start_time.split(':').map(Number);
         const [bHours, bMinutes] = b.start_time.split(':').map(Number);
 
@@ -328,10 +291,10 @@ export function RecurringShiftModal({
         return aMinutes - bMinutes;
       });
 
-      setFilteredShiftTemplates(uniqueTemplates);
-      if (uniqueTemplates.length === 1) {
-        setStartTime(uniqueTemplates[0].start_time);
-        setEndTime(uniqueTemplates[0].end_time);
+      setFilteredShiftTemplates(templatesForDay);
+      if (templatesForDay.length === 1) {
+        setStartTime(templatesForDay[0].start_time);
+        setEndTime(templatesForDay[0].end_time);
       }
     } catch (err: any) {
       console.error('Error fetching shift templates for location and position:', err);
@@ -414,12 +377,12 @@ export function RecurringShiftModal({
       if (!savedShiftResponse || !savedShiftId) {
         throw new Error('Failed to save shift or get ID back.');
       }
-      
-      const successMessage = isEditing 
+
+      const successMessage = isEditing
         ? "Recurring shift updated successfully."
         : "Recurring shift added successfully.";
       showSuccessToast(successMessage);
-      
+
       // Construct the RecurringShift object for the onSuccess callback
       const selectedLocation = locations.find(loc => loc.id === locationId);
       const selectedPosition = allPositions.find(pos => pos.id === positionId);
@@ -435,7 +398,7 @@ export function RecurringShiftModal({
         end_time: savedShiftResponse.end_time,
         assignment_type: savedShiftResponse.assignment_type as 'lead' | 'regular' | 'training',
       };
-      
+
       onSuccess({ savedShift: fullSavedShift, isNew: !isEditing });
       handleClose(); // Close modal on success
     } catch (err: any) {
@@ -451,11 +414,18 @@ export function RecurringShiftModal({
     onClose();
   };
 
+  const uniqueStartTimeTemplates = filteredShiftTemplates.reduce((acc, current) => {
+    if (!acc.find(item => item.start_time === current.start_time)) {
+      acc.push(current);
+    }
+    return acc;
+  }, [] as typeof filteredShiftTemplates);
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-[#f8f9f7]">
+      <DialogContent className="sm:max-w-[500px] bg-background">
         <DialogHeader>
-          <DialogTitle className="text-xl font-manrope font-semibold">
+          <DialogTitle className="text-xl font-manrope font-medium">
             {isEditing ? 'Edit Recurring Shift' : 'Add Recurring Shift'}
           </DialogTitle>
         </DialogHeader>
@@ -464,7 +434,7 @@ export function RecurringShiftModal({
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Day of Week</Label>
-              <Select value={dayOfWeek} onValueChange={setDayOfWeek}>
+              <Select value={dayOfWeek} onValueChange={setDayOfWeek} disabled={isEditing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select day" />
                 </SelectTrigger>
@@ -480,7 +450,7 @@ export function RecurringShiftModal({
 
             <div className="space-y-2">
               <Label>Location</Label>
-              <Select value={locationId} onValueChange={setLocationId}>
+              <Select value={locationId} onValueChange={setLocationId} disabled={isEditing}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location">
                     {locationId ? formatLocationName(locations.find(loc => loc.id === locationId)?.name) : "Select location"}
@@ -501,8 +471,8 @@ export function RecurringShiftModal({
 
             <div className="space-y-2">
               <Label>Position</Label>
-              <Select 
-                value={positionId} 
+              <Select
+                value={positionId}
                 onValueChange={setPositionId}
                 disabled={!locationId}
               >
@@ -520,81 +490,156 @@ export function RecurringShiftModal({
                 </SelectContent>
               </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label>Start Time</Label>
-              <Select 
-                value={startTime} 
-                onValueChange={setStartTime}
-                disabled={!locationId || !positionId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={
-                    !locationId ? "Select a location first" : 
-                    !positionId ? "Select a position first" : 
-                    "Select start time"
-                  } />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredShiftTemplates.map((template) => (
-                    <SelectItem key={template.id} value={template.start_time}>
-                      {formatTime(template.start_time)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>End Time</Label>
-              <Select 
-                value={endTime} 
-                onValueChange={setEndTime}
-                disabled={!startTime}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select end time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredShiftTemplates
-                    .filter(template => template.start_time === startTime)
-                    .map((template) => (
-                      <SelectItem key={template.id} value={template.end_time}>
-                        {formatTime(template.end_time)}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2">
+                <Label>Start Time</Label>
+                <Select
+                  value={startTime}
+                  onValueChange={setStartTime}
+                  disabled={!locationId || !positionId || !dayOfWeek}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        !locationId
+                          ? 'Select a location first'
+                          : !positionId
+                            ? 'Select a position first'
+                            : !dayOfWeek
+                              ? 'Select a day of week first'
+                              : 'Select start time'
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {uniqueStartTimeTemplates.map(template => (
+                      <SelectItem key={template.id} value={template.start_time}>
+                        {formatTime(template.start_time)}
                       </SelectItem>
                     ))}
-                </SelectContent>
-              </Select>
-            </div>
+                  </SelectContent>
+                </Select>
+              </div>
 
+              <div className="space-y-2">
+                <Label>End Time</Label>
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={(templateId) => {
+                    const template = filteredShiftTemplates.find(t => t.id === templateId);
+                    if (template) {
+                      setSelectedTemplateId(template.id);
+                      setEndTime(template.end_time);
+                      setAssignmentType(template.lead_type ? 'lead' : 'regular');
+                    }
+                  }}
+                  disabled={!startTime}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select end time">
+                      {endTime ? formatTime(endTime) : 'Select end time'}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {filteredShiftTemplates
+                      .filter(template => template.start_time === startTime)
+                      .map((template, _index, array) => {
+                        const isDuplicate = array.some(t => t.id !== template.id && t.end_time === template.end_time);
+                        const type = template.lead_type ? 'Lead' : 'Regular';
+                        const label = formatTime(template.end_time);
+
+                        return (
+                          <SelectItem key={template.id} value={template.id}>
+                            {isDuplicate ? `${label} (${type})` : label}
+                          </SelectItem>
+                        );
+                      })}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>Assignment Type</Label>
-              <RadioGroup
-                value={assignmentType}
-                onValueChange={(value: 'lead' | 'regular' | 'training') => setAssignmentType(value)}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="regular" id="regular" />
-                  <Label htmlFor="regular">Regular</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="lead" id="lead" />
-                  <Label htmlFor="lead">Lead</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="training" id="training" />
-                  <Label htmlFor="training">Training</Label>
-                </div>
-              </RadioGroup>
+              <div className="flex gap-4">
+                <label htmlFor="assignment-regular" className="flex items-center cursor-pointer select-none">
+                  <input
+                    type="radio"
+                    id="assignment-regular"
+                    name="assignmentType"
+                    value="regular"
+                    checked={assignmentType === 'regular'}
+                    onChange={() => setAssignmentType('regular')}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'regular' ? 'bg-accent' : 'bg-transparent'} transition`}
+                    />
+                  </span>
+                  <span className={
+                    `text-sm font-medium transition-colors duration-200 ${assignmentType === 'regular' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
+                  }>
+                    Regular
+                  </span>
+                </label>
+                <label htmlFor="assignment-lead" className="flex items-center cursor-pointer select-none">
+                  <input
+                    type="radio"
+                    id="assignment-lead"
+                    name="assignmentType"
+                    value="lead"
+                    checked={assignmentType === 'lead'}
+                    onChange={() => setAssignmentType('lead')}
+                    className="peer sr-only"
+                  />
+                  <span
+                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'lead' ? 'bg-accent' : 'bg-transparent'} transition`}
+                    />
+                  </span>
+                  <span className={
+                    `text-sm font-medium transition-colors duration-200 ${assignmentType === 'lead' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
+                  }>
+                    Lead
+                  </span>
+                </label>
+                <label htmlFor="assignment-training" className="flex items-center cursor-not-allowed select-none opacity-60">
+                  <input
+                    type="radio"
+                    id="assignment-training"
+                    name="assignmentType"
+                    value="training"
+                    checked={assignmentType === 'training'}
+                    onChange={() => { }}
+                    className="peer sr-only"
+                    disabled
+                  />
+                  <span
+                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors duration-200`}
+                  >
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'training' ? 'bg-accent' : 'bg-transparent'} transition`}
+                    />
+                  </span>
+                  <span className={
+                    `text-sm transition-colors duration-200 text-ashmocha font-medium`
+                  }>
+                    Training
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <p className="text-sm text-errorred">{error}</p>
           )}
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
+          <div className="flex justify-end gap-2 pt-8">
             <Button variant="outline" onClick={handleClose}>
               Cancel
             </Button>
