@@ -146,8 +146,10 @@ function formatWorkerDisplay(
   if (assignedStart && assignedEnd &&
       (assignedStart !== mainShiftStartTime || assignedEnd !== mainShiftEndTime)) {
     namePartElements.push(
-      <span key="time" className="font-normal text-gray-600 text-xs">
-        {` (${formatTime12hr(assignedStart)} - ${formatTime12hr(assignedEnd)})`}
+      <span className="inline-flex items-center">
+        <span className="font-normal text-gray-600 text-[11px] align-baseline ml-1 mt-[1.5px]">
+          {`(${formatTime12hr(assignedStart)} - ${formatTime12hr(assignedEnd)})`}
+        </span>
       </span>
     );
   }
@@ -157,15 +159,6 @@ function formatWorkerDisplay(
 function capitalize(str: string): string {
   if (!str) return '';
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
-}
-
-// Helper function to convert HH:MM:SS or HH:MM to minutes from midnight
-function timeToMinutes(timeStr: string): number {
-  if (!timeStr || !timeStr.includes(':')) return 0;
-  const parts = timeStr.split(':').map(Number);
-  if (parts.length === 2) return parts[0] * 60 + parts[1]; // HH:MM
-  if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60; // HH:MM:SS
-  return 0;
 }
 
 const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts, shiftTemplates, workers, positions, editMode, onShiftClick, locationId }) => {
@@ -538,7 +531,10 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                               // Assigned cell: overlay Edit3 icon in top right on hover/focus (edit mode only)
                               return (
                                 <div key={shift.id} className="relative flex flex-col items-center justify-center w-full h-full group mb-1 last:mb-0">
-                                  <span className="font-medium text-charcoalcocoa text-center w-full flex justify-center">{formatWorkerDisplay(shift.workerName, shift.job_level, shift.start_time || '', shift.end_time || '', shift.assigned_start, shift.assigned_end)}</span>
+                                  <span className="font-medium text-charcoalcocoa text-center w-full flex justify-center">
+                                    {formatWorkerDisplay(shift.workerName, shift.job_level, shift.start_time || '', shift.end_time || '', shift.assigned_start, shift.assigned_end)}
+                                    {shift.is_recurring_generated && <span className="font-normal text-xs ml-1 mt-[2px]">•</span>}
+                                  </span>
                                   {editMode && (
                                     <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 group-focus:opacity-100 transition-opacity duration-200 flex items-center cursor-pointer">
                                       <Edit3 size={12} className="text-ashmocha/40 group-hover:text-primary-foreground group-focus:text-primary-foreground" />
@@ -594,7 +590,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
 
     if (isSideBySideItem) {
       return (
-        <div key={roleName} className={`${layoutClass} mb-12`}>
+        <div key={roleName} className={`${layoutClass}`}>
           <div className="border rounded-lg bg-white shadow-md overflow-hidden">
             {tableItself}
           </div>
@@ -603,7 +599,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
     }
 
     return (
-      <div key={roleName} className={`${layoutClass} mb-12`}>
+      <div key={roleName} className={`${layoutClass}`}>
         <ScrollArea className="border rounded-lg bg-white shadow-md">
           {tableItself}
           <ScrollBar orientation="horizontal" />
@@ -634,11 +630,16 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
     .filter(role => role.data && role.data.length > 0);
 
   return (
-    <div className="space-y-6">
-      {baristaTableData && renderRoleTableSection(baristaRoleName, baristaTableData, false)}
+    <div className="">
+      {baristaTableData && (
+        <div className="mb-12">
+          <div className="text-sm text-ashmocha mb-2 ml-1">• Recurring shifts</div>
+          {renderRoleTableSection(baristaRoleName, baristaTableData, false)}
+        </div>
+      )}
 
       {sideBySideRolesToRender.length > 0 && (
-        <div className="flex flex-col xl:flex-row xl:space-x-12 space-y-8 xl:space-y-0">
+        <div className="flex flex-col xl:flex-row xl:space-x-12 space-y-8 xl:space-y-0 mb-12">
           {sideBySideRolesToRender.map(role => 
             renderRoleTableSection(role.name, role.data!, true)
           )}
@@ -646,7 +647,9 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
       )}
 
       {otherFullWidthRolesToRender.map(role => 
-        renderRoleTableSection(role.name, role.data!, false)
+        <div key={role.name} className="mb-12">
+          {renderRoleTableSection(role.name, role.data!, false)}
+        </div>
       )}
     </div>
   );
