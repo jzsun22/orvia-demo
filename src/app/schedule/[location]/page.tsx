@@ -262,7 +262,7 @@ const SchedulePage = () => {
     <div className="max-w-[1280px] mx-auto mt-16 px-6 pt-4 pb-8">
       <div className="flex items-center justify-between mb-8 gap-4 flex-wrap">
         <div className="flex items-center gap-4 min-w-0">
-          <h1 className="text-3xl font-manrope font-bold text-primary-foreground whitespace-nowrap truncate">
+          <h1 className="text-2xl 2xl:text-3xl font-manrope font-bold text-primary-foreground whitespace-nowrap truncate">
             {data?.location && !isLoading ? formatLocationName(data.location.name) : (isLoading ? "Loading Location..." : "Location Not Found")}
           </h1>
           <div className="relative top-[3px]">
@@ -271,12 +271,12 @@ const SchedulePage = () => {
         </div>
         <div className="flex items-center space-x-4">
           <ButtonWrapper isDisabled={editButtonDisabled} showTooltip={isPastWeek && editButtonDisabled} tooltipText={pastWeekTooltipContent}>
-            <Button onClick={handleToggleEditMode} variant="outline" disabled={editButtonDisabled} >
+            <Button onClick={handleToggleEditMode} variant="outline" className="h-8 text-[13px] 2xl:h-9 2xl:text-sm" disabled={editButtonDisabled} >
               {editMode ? 'View Mode' : 'Edit Schedule'}
             </Button>
           </ButtonWrapper>
           <ButtonWrapper isDisabled={generateButtonDisabled} showTooltip={isPastWeek && generateButtonDisabled} tooltipText={pastWeekTooltipContent}>
-            <Button onClick={handleGenerateSchedule} disabled={generateButtonDisabled} className="relative">
+            <Button onClick={handleGenerateSchedule} disabled={generateButtonDisabled} className="relative h-8 text-[13px] 2xl:h-9 2xl:text-sm">
               {isGenerating && (
                 <span className="absolute inset-0 flex items-center justify-center bg-white/60 z-10">
                   <span className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full" />

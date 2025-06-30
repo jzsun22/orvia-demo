@@ -27,7 +27,7 @@ const WeekNavigator: React.FC<WeekNavigatorProps> = ({ weekStart, onPrev, onNext
         disabled={!!isLoading}>
         <ChevronLeft size={16} className="h-4 w-4" />
       </Button>
-      <span className="font-medium text-lg">
+      <span className="font-medium text-base 2xl:text-lg">
         {formatDate(weekStart)} - {formatDate(weekEnd)}
       </span>
       <Button

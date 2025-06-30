@@ -10,26 +10,27 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { 
-  EditableShiftDetails, 
-  ShiftAssignmentsWithWorker, 
-  Worker, 
-  ShiftTemplate, 
-  Location, 
-  Position } from '../../lib/types'
+import {
+  EditableShiftDetails,
+  ShiftAssignmentsWithWorker,
+  Worker,
+  ShiftTemplate,
+  Location,
+  Position
+} from '../../lib/types'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, XCircle } from 'lucide-react' 
-import { WorkerSelectorDropdown } from '@/components/select/WorkerSelectorDropdown' 
-import type { ShiftClickContext } from '@/components/scheduling/ScheduleGrid' 
+import { Loader2, XCircle } from 'lucide-react'
+import { WorkerSelectorDropdown } from '@/components/select/WorkerSelectorDropdown'
+import type { ShiftClickContext } from '@/components/scheduling/ScheduleGrid'
 import { supabase } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
-import { useAppToast } from "@/lib/toast-service"; 
+import { useAppToast } from "@/lib/toast-service";
 import { APP_TIMEZONE, parseTime as parseAppTime } from '@/lib/scheduling/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 import { capitalizeWords, formatLocationName } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
-// It's crucial that these environment variables are exposed to the client
-// by prefixing them with NEXT_PUBLIC_ in your .env.local file.
+
 const PREP_BARISTA_POSITION_ID = process.env.NEXT_PUBLIC_PREP_BARISTA_POSITION_ID;
 const PAIRED_TEMPLATE_ID_1 = process.env.NEXT_PUBLIC_PREP_BARISTA_TEMPLATE_1;
 const PAIRED_TEMPLATE_ID_2 = process.env.NEXT_PUBLIC_PREP_BARISTA_TEMPLATE_2;
@@ -107,7 +108,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     const processShiftContext = async () => {
       setIsLoading(true);
       setError(null);
-      setShiftDetails(null); 
+      setShiftDetails(null);
       setDraftAssignments([]);
       setPairedShiftInfo(null);
 
@@ -156,7 +157,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         // Construct EditableShiftDetails from the context for a new shift
         // This assumes we don't need to fetch full Location/Position objects by ID for the initial modal display
         // and can work with IDs, or the parent (ScheduleGrid) would need to pass more complete objects.
-        
+
         let fetchedLocationName = `Location ID: ${shiftContext.locationId}`;
         let fetchedPositionName = `Position ID: ${shiftContext.positionId}`;
 
@@ -181,26 +182,26 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           console.error('New shift: Error fetching location/position names:', fetchError.message);
           // Fallback names are already set, so we can continue
         }
-        
+
         const partialLocation: Location = { id: shiftContext.locationId, name: fetchedLocationName };
         const partialPosition: Position = { id: shiftContext.positionId, name: fetchedPositionName };
-        
+
         // Minimal ShiftTemplate object from context
         const partialShiftTemplate: ShiftTemplate = {
-            id: shiftContext.templateId,
-            location_id: shiftContext.locationId,
-            position_id: shiftContext.positionId,
-            days_of_week: [], // Not strictly needed for modal display of one shift
-            start_time: shiftContext.startTime,
-            end_time: shiftContext.endTime,
-            lead_type: (shiftContext.leadType === 'opening' || shiftContext.leadType === 'closing' || shiftContext.leadType === null || shiftContext.leadType === undefined) ? shiftContext.leadType : null
+          id: shiftContext.templateId,
+          location_id: shiftContext.locationId,
+          position_id: shiftContext.positionId,
+          days_of_week: [], // Not strictly needed for modal display of one shift
+          start_time: shiftContext.startTime,
+          end_time: shiftContext.endTime,
+          lead_type: (shiftContext.leadType === 'opening' || shiftContext.leadType === 'closing' || shiftContext.leadType === null || shiftContext.leadType === undefined) ? shiftContext.leadType : null
         };
 
         let determinedShiftType: EditableShiftDetails['shiftType'] = 'non-lead';
         if (shiftContext.leadType === 'opening') {
-            determinedShiftType = 'opening-lead';
+          determinedShiftType = 'opening-lead';
         } else if (shiftContext.leadType === 'closing') {
-            determinedShiftType = 'closing-lead';
+          determinedShiftType = 'closing-lead';
         }
 
         const constructedDetails: EditableShiftDetails = {
@@ -220,7 +221,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           shiftTemplate: partialShiftTemplate,
           currentAssignments: [], // New shift has no current assignments
           shiftType: determinedShiftType,
-          location: partialLocation, 
+          location: partialLocation,
           position: partialPosition,
         };
         setShiftDetails(constructedDetails);
@@ -270,15 +271,15 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   const primaryAssignmentType = getPrimaryAssignmentType();
   // console.log('[EditShiftModal render] shiftDetails available:', !!shiftDetails);
   // console.log('[EditShiftModal render] Calculated primaryAssignmentType:', primaryAssignmentType);
-  
+
   const trainingAssignment = findAssignment(draftAssignments, 'training');
   // This logic is now intentionally robust. It first trusts the `shiftType` from the API.
   // If that doesn't yield an assignment (due to data inconsistencies where a 'non-lead' shift
   // might have a 'lead' assignment), it falls back to finding the first non-training assignment.
-  const primaryAssignment = 
+  const primaryAssignment =
     (primaryAssignmentType ? findAssignment(draftAssignments, primaryAssignmentType) : null) ??
     (draftAssignments.find(a => a.assignment_type !== 'training') || null);
-  
+
   const validateAssignmentTime = useCallback((
     assignmentType: 'lead' | 'regular' | 'training',
     field: 'assigned_start' | 'assigned_end',
@@ -311,7 +312,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
 
   const handlePrimaryWorkerChange = (worker: Worker | null) => {
     if (!primaryAssignmentType || !shiftDetails || !shiftDetails.scheduledShift /* Check scheduledShift exists */) return;
-    const currentScheduledShiftId = shiftDetails.scheduledShift.id; 
+    const currentScheduledShiftId = shiftDetails.scheduledShift.id;
 
     setDraftAssignments(prev => {
       const otherAssignments = prev.filter(a => a.assignment_type !== primaryAssignmentType);
@@ -321,11 +322,11 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         const isExistingPersistentAssignment = primaryAssignment && primaryAssignment.id && !primaryAssignment.id.startsWith('new-assignment-');
         const newPrimaryAssignment: ShiftAssignmentsWithWorker = {
           id: isExistingPersistentAssignment ? primaryAssignment.id : `new-assignment-${crypto.randomUUID()}`,
-          scheduled_shift_id: currentScheduledShiftId, 
+          scheduled_shift_id: currentScheduledShiftId,
           worker_id: worker.id,
-          workers: worker, 
+          workers: worker,
           assignment_type: primaryAssignmentType,
-          is_manual_override: true, 
+          is_manual_override: true,
           created_at: primaryAssignment?.created_at || new Date().toISOString(),
           // Ensure assigned_start and assigned_end are carried over if they existed, or null/undefined if new
           assigned_start: isExistingPersistentAssignment ? primaryAssignment.assigned_start : null,
@@ -356,7 +357,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           id: isExistingPersistentAssignment ? trainingAssignment.id : `new-assignment-${crypto.randomUUID()}`,
           scheduled_shift_id: currentScheduledShiftId,
           worker_id: worker.id,
-          workers: worker, 
+          workers: worker,
           assignment_type: 'training',
           is_manual_override: true,
           created_at: trainingAssignment?.created_at || new Date().toISOString(),
@@ -367,7 +368,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
       }
       return otherAssignments; // Effectively removes the training assignment if worker is null
     });
-  }; 
+  };
   const canAddTraining = primaryAssignment && !trainingAssignment;
 
   const handleUnassignPrimaryAndTrainingFromDraft = () => {
@@ -439,12 +440,12 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
       // Perform validation after updating the draft state
       const validationError = validateAssignmentTime(assignmentType, field, value || null, newDrafts);
       const errorKey = `${assignmentType === primaryAssignmentType ? 'primary' : 'training'}_${field.split('_')[1]}` as keyof typeof timeValidationErrors;
-      
+
       setTimeValidationErrors(prevErrors => ({
         ...prevErrors,
         [errorKey]: validationError,
       }));
-      
+
       // Also clear the cross-validation error for the other field if this one becomes valid or empty
       // e.g., if assigned_start is changed, re-validate assigned_end in context of new start
       if (!validationError) {
@@ -466,8 +467,8 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   const handleResetAssignmentTimes = (assignmentType: 'lead' | 'regular' | 'training') => {
     setDraftAssignments(prev => prev.map(a => {
       if (a.assignment_type === assignmentType) {
-        return { 
-          ...a, 
+        return {
+          ...a,
           assigned_start: null, // Reset to null 
           assigned_end: null    // Reset to null
         };
@@ -486,20 +487,20 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   const isPrepBaristaShift = shiftDetails?.position?.id === PREP_BARISTA_POSITION_ID;
 
   const renderPrimaryAssignmentSlot = () => {
-    if (!shiftDetails || !primaryAssignmentType ) return null;
+    if (!shiftDetails || !primaryAssignmentType) return null;
     const assignment = primaryAssignment;
     const showResetButton = assignment && (assignment.assigned_start || assignment.assigned_end);
 
     return (
       <div className="space-y-2 p-3 border rounded-lg bg-background">
         <div className="flex justify-between items-center mb-1">
-          <h4 className="font-semibold text-md capitalize">{primaryAssignmentType} Worker:</h4>
+          <h4 className="font-semibold text-sm 2xl:text-base capitalize">{primaryAssignmentType} Worker:</h4>
           {assignment && ( // Show unassign button only if a primary worker is assigned in draft
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleUnassignPrimaryAndTrainingFromDraft} 
-              className="text-errorred hover:text-[#9A3E37] h-7 px-2"
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleUnassignPrimaryAndTrainingFromDraft}
+              className="text-errorred hover:text-[#9A3E37] hover:border-errorred/60 h-7 px-2"
               disabled={isLoading || isSaving}
             >
               <XCircle className="mr-1 h-4 w-4" /> Unassign
@@ -507,16 +508,16 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           )}
         </div>
         <WorkerSelectorDropdown
-            key="primary-assignment-selector"
-            scheduledShiftId={effectiveScheduledShiftIdForDropdown}
-            newShiftClientContext={newShiftContextForDropdown}
-            targetAssignmentType={primaryAssignmentType}
-            currentWorkerId={assignment?.worker_id}
-            onWorkerSelect={handlePrimaryWorkerChange}
-            placeholder={`Select ${primaryAssignmentType}...`}
-            disabled={isLoading}
-            popoverContainerRef={dialogContentRef}
-            excludeWorkerId={trainingAssignment?.worker_id || null}
+          key="primary-assignment-selector"
+          scheduledShiftId={effectiveScheduledShiftIdForDropdown}
+          newShiftClientContext={newShiftContextForDropdown}
+          targetAssignmentType={primaryAssignmentType}
+          currentWorkerId={assignment?.worker_id}
+          onWorkerSelect={handlePrimaryWorkerChange}
+          placeholder={`Select ${primaryAssignmentType}...`}
+          disabled={isLoading}
+          popoverContainerRef={dialogContentRef}
+          excludeWorkerId={trainingAssignment?.worker_id || null}
         />
         {assignment && assignment.workers && (
           <p className="text-xs text-muted-foreground ml-1">
@@ -534,11 +535,11 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
                 type="time"
                 value={assignment.assigned_start || ''} // Use empty string if null for input value
                 onChange={e => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_start', e.target.value)}
-                className="w-28"
+                className="text-xs 2xl:text-sm w-[112px] 2xl:w-[116px]"
                 step="300"
               />
               <div className="min-h-[1.25rem] mt-1">
-                {timeValidationErrors.primary_start && <p className="text-xs text-red-500">{timeValidationErrors.primary_start}</p>}
+                {timeValidationErrors.primary_start && <p className="text-xs text-errorred">{timeValidationErrors.primary_start}</p>}
               </div>
             </div>
             <div className="flex flex-col">
@@ -548,7 +549,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
                 type="time"
                 value={assignment.assigned_end || ''} // Use empty string if null for input value
                 onChange={e => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_end', e.target.value)}
-                className="w-28"
+                className="text-xs 2xl:text-sm w-[112px] 2xl:w-[116px]"
                 step="300"
               />
               <div className="min-h-[1.25rem] mt-1">
@@ -556,7 +557,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
               </div>
             </div>
             {showResetButton && (
-              <Button 
+              <Button
                 variant="link"
                 size="sm"
                 onClick={() => handleResetAssignmentTimes(primaryAssignmentType)}
@@ -575,7 +576,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     if (isPrepBaristaShift) { // No training slot for Prep Barista
       return null;
     }
-    if (!shiftDetails || !primaryAssignmentType ) return null;
+    if (!shiftDetails || !primaryAssignmentType) return null;
     const assignment = trainingAssignment;
     // If primaryAssignmentType is 'lead', training can be added even if primary (lead) isn't assigned yet.
     // If primaryAssignmentType is 'regular', primary (regular) MUST be assigned before training can be added.
@@ -585,7 +586,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     return (
       <div className="space-y-2 p-3 border rounded-lg bg-background mt-3">
         <div className="flex justify-between items-center mb-1">
-          <h4 className="font-semibold text-md">(Optional) Training Worker:</h4>
+          <h4 className="font-semibold text-sm 2xl:text-base">(Optional) Training Worker:</h4>
           {assignment && (
             <Button variant="ghost" size="sm" onClick={() => handleTrainingWorkerChange(null)} className="text-errorred hover:text-[#9A3E37] h-7 px-2">
               <XCircle className="mr-1 h-4 w-4" /> Remove
@@ -595,17 +596,17 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         {(assignment || canAddTraining) && canEnableTrainingSlot ? (
           <>
             <WorkerSelectorDropdown
-                key="training-assignment-selector"
-                scheduledShiftId={effectiveScheduledShiftIdForDropdown}
-                newShiftClientContext={newShiftContextForDropdown}
-                targetAssignmentType="training"
-                currentWorkerId={assignment?.worker_id}
-                onWorkerSelect={handleTrainingWorkerChange}
-                placeholder="Select training worker..."
-                // Disable if primary is not selected (for regular shifts) or if loading
-                disabled={isLoading || (primaryAssignmentType === 'regular' && !primaryAssignment)}
-                popoverContainerRef={dialogContentRef}
-                excludeWorkerId={primaryAssignment?.worker_id || null}
+              key="training-assignment-selector"
+              scheduledShiftId={effectiveScheduledShiftIdForDropdown}
+              newShiftClientContext={newShiftContextForDropdown}
+              targetAssignmentType="training"
+              currentWorkerId={assignment?.worker_id}
+              onWorkerSelect={handleTrainingWorkerChange}
+              placeholder="Select training worker..."
+              // Disable if primary is not selected (for regular shifts) or if loading
+              disabled={isLoading || (primaryAssignmentType === 'regular' && !primaryAssignment)}
+              popoverContainerRef={dialogContentRef}
+              excludeWorkerId={primaryAssignment?.worker_id || null}
             />
             {assignment && assignment.workers && ( // Hide time inputs for Prep Barista (already handled by function return)
               <>
@@ -644,7 +645,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
                     </div>
                   </div>
                   {showResetButton && (
-                    <Button 
+                    <Button
                       variant="link"
                       size="sm"
                       onClick={() => handleResetAssignmentTimes('training')}
@@ -663,7 +664,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
       </div>
     );
   };
-  
+
   const dialogTitle = isNewShift ? "Assign New Shift" : "Edit Shift";
   const shiftDateStr = shiftDetails?.scheduledShift?.shift_date;
   const dialogDescriptionDate = shiftDateStr
@@ -673,10 +674,10 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   const formattedEndTime = formatTime12hr(pairedShiftInfo ? pairedShiftInfo.partnerShiftEndTime : shiftDetails?.scheduledShift?.end_time);
   const dialogDescriptionTime = shiftDetails?.scheduledShift ? `${formattedStartTime} - ${formattedEndTime}` : "";
   const dialogLocationName = capitalizeWords(shiftDetails?.location?.name) || (shiftContext?.type === 'new' ? `Location ID: ${shiftContext.locationId}` : "");
-  const dialogTemplateName = shiftDetails?.shiftTemplate?.id 
-    ? `Template ID: ${shiftDetails.shiftTemplate.id}` 
+  const dialogTemplateName = shiftDetails?.shiftTemplate?.id
+    ? `Template ID: ${shiftDetails.shiftTemplate.id}`
     : (shiftContext?.type === 'new' && shiftContext.templateId ? `Template ID: ${shiftContext.templateId}` : "");
-  
+
   let dialogPositionName = capitalizeWords(shiftDetails?.position?.name) || (shiftContext?.type === 'new' ? `Position ID: ${shiftContext.positionId}` : "");
   if (isPrepBaristaShift) {
     dialogPositionName = "Prep / Barista";
@@ -694,57 +695,57 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     // Perform final validation before saving (only if not Prep Barista, as times are fixed for them)
     let finalValidationOk = true;
     if (!isPrepBaristaShift) {
-        const currentValidationErrors: typeof timeValidationErrors = {};
-        draftAssignments.forEach(assignment => {
-          if (assignment.assigned_start || assignment.assigned_end) { // Only validate if custom times are set
-            const assignmentCategory = assignment.assignment_type === primaryAssignmentType ? 'primary' : 'training';
-            
-            if (assignment.assigned_start) {
-              const startError = validateAssignmentTime(assignment.assignment_type, 'assigned_start', assignment.assigned_start, draftAssignments);
-              if (startError) {
-                finalValidationOk = false;
-                currentValidationErrors[`${assignmentCategory}_start`] = startError;
-              }
-            }
-            if (assignment.assigned_end) {
-              const endError = validateAssignmentTime(assignment.assignment_type, 'assigned_end', assignment.assigned_end, draftAssignments);
-              if (endError) {
-                finalValidationOk = false;
-                currentValidationErrors[`${assignmentCategory}_end`] = endError;
-              }
+      const currentValidationErrors: typeof timeValidationErrors = {};
+      draftAssignments.forEach(assignment => {
+        if (assignment.assigned_start || assignment.assigned_end) { // Only validate if custom times are set
+          const assignmentCategory = assignment.assignment_type === primaryAssignmentType ? 'primary' : 'training';
+
+          if (assignment.assigned_start) {
+            const startError = validateAssignmentTime(assignment.assignment_type, 'assigned_start', assignment.assigned_start, draftAssignments);
+            if (startError) {
+              finalValidationOk = false;
+              currentValidationErrors[`${assignmentCategory}_start`] = startError;
             }
           }
-        });
-        if (!finalValidationOk) {
-          setTimeValidationErrors(currentValidationErrors);
-          setError("Invalid custom times. Please correct the highlighted errors.");
-          setIsSaving(false);
-          return;
+          if (assignment.assigned_end) {
+            const endError = validateAssignmentTime(assignment.assignment_type, 'assigned_end', assignment.assigned_end, draftAssignments);
+            if (endError) {
+              finalValidationOk = false;
+              currentValidationErrors[`${assignmentCategory}_end`] = endError;
+            }
+          }
         }
+      });
+      if (!finalValidationOk) {
+        setTimeValidationErrors(currentValidationErrors);
+        setError("Invalid custom times. Please correct the highlighted errors.");
+        setIsSaving(false);
+        return;
+      }
     }
-    
+
     const scheduledShiftData = shiftDetails.scheduledShift;
     const assignmentsToSave = draftAssignments.map(a => ({
-        id: (a.id.startsWith('new-assignment-') || a.id.startsWith('new-shift-')) ? undefined : a.id,
-        scheduled_shift_id: isNewShift ? undefined : scheduledShiftData.id, 
-        worker_id: a.worker_id,
-        assignment_type: a.assignment_type,
-        is_manual_override: a.is_manual_override,
-        // For Prep Barista, always send null for custom times as they are not allowed
-        assigned_start: isPrepBaristaShift ? null : (a.assigned_start || null), 
-        assigned_end: isPrepBaristaShift ? null : (a.assigned_end || null),     
+      id: (a.id.startsWith('new-assignment-') || a.id.startsWith('new-shift-')) ? undefined : a.id,
+      scheduled_shift_id: isNewShift ? undefined : scheduledShiftData.id,
+      worker_id: a.worker_id,
+      assignment_type: a.assignment_type,
+      is_manual_override: a.is_manual_override,
+      // For Prep Barista, always send null for custom times as they are not allowed
+      assigned_start: isPrepBaristaShift ? null : (a.assigned_start || null),
+      assigned_end: isPrepBaristaShift ? null : (a.assigned_end || null),
     }));
 
     // Filter out training assignments if it's a Prep Barista shift before saving
-    const finalAssignmentsToSave = isPrepBaristaShift 
-        ? assignmentsToSave.filter(a => a.assignment_type !== 'training') 
-        : assignmentsToSave;
+    const finalAssignmentsToSave = isPrepBaristaShift
+      ? assignmentsToSave.filter(a => a.assignment_type !== 'training')
+      : assignmentsToSave;
 
     try {
       let response;
       if (isNewShift) {
         const payload = {
-          shiftData: { 
+          shiftData: {
             shift_date: scheduledShiftData.shift_date,
             template_id: scheduledShiftData.template_id,
             start_time: scheduledShiftData.start_time,
@@ -753,7 +754,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           assignments: finalAssignmentsToSave, // Use filtered assignments
         };
         console.log('[EditShiftModal] Saving new shift with payload:', JSON.stringify(payload, null, 2));
-        response = await fetch('/api/create-shift-with-assignments', { 
+        response = await fetch('/api/create-shift-with-assignments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -766,7 +767,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           assignments: finalAssignmentsToSave,
         };
         console.log('[EditShiftModal] Updating primary shift with payload:', JSON.stringify(primaryPayload, null, 2));
-        updatePromises.push(fetch('/api/update-shift-assignments', { 
+        updatePromises.push(fetch('/api/update-shift-assignments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(primaryPayload),
@@ -782,13 +783,13 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
             ...rest,
             id: undefined, // Force 'add' logic on backend for reconciliation.
           }));
-          
+
           const partnerPayload = {
             scheduledShiftId: pairedShiftInfo.partnerShiftId,
             assignments: partnerAssignments,
           };
           console.log('[EditShiftModal] Updating partner shift with payload:', JSON.stringify(partnerPayload, null, 2));
-          updatePromises.push(fetch('/api/update-shift-assignments', { 
+          updatePromises.push(fetch('/api/update-shift-assignments', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(partnerPayload),
@@ -808,12 +809,12 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         throw new Error(errorData.error || `Failed to save changes: ${response.statusText}`);
       }
       // Determine the correct success message
-      const successMessage = isNewShift 
+      const successMessage = isNewShift
         ? "New shift assigned successfully."
         : "Shift updated successfully.";
       showSuccessToast(successMessage); // Show success toast
       onShiftUpdated();
-      handleClose(); 
+      handleClose();
     } catch (e: any) {
       console.error('Failed to save shift changes:', e);
       setError(e.message || 'An unexpected error occurred while saving.');
@@ -823,13 +824,13 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   };
 
   return (
-    <Dialog 
-      open={isOpen} 
+    <Dialog
+      open={isOpen}
       onOpenChange={(open) => (open ? null : handleClose())}
     >
-      <DialogContent 
+      <DialogContent
         ref={dialogContentRef}
-        className="sm:max-w-[525px]"
+        className="bg-background p-0 border-[1.5px] border-verylightbeige"
         onPointerDownOutside={(event) => {
           if ((event.target as HTMLElement)?.closest('[data-radix-interactable-popover]')) {
             event.preventDefault();
@@ -837,54 +838,55 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           }
         }}
       >
-        <DialogHeader>
-          <DialogTitle className="mb-1">{dialogTitle}</DialogTitle>
-          {shiftDetails && (
-            <DialogDescription>
-              {dialogPositionName}
-              {' @ '}{formatLocationName(dialogLocationName)}
-              {' ('}{dialogDescriptionDate}, {dialogDescriptionTime})
-              {isPrepBaristaShift && <span className="block text-xs text-muted-foreground mt-1">(Note: This is a paired Prep/Barista shift. Worker will cover both AM/PM blocks.)</span>}
-            </DialogDescription>
-          )}
-        </DialogHeader>
+        <ScrollArea className="max-h-[380px] xl:max-h-[600px] 2xl:max-h-full">
+          <div className="p-8 xl:p-6">
+            <DialogHeader>
+              <DialogTitle className="mb-1">{dialogTitle}</DialogTitle>
+              {shiftDetails && (
+                <DialogDescription>
+                  {dialogPositionName}
+                  {' @ '}{formatLocationName(dialogLocationName)}
+                  {' ('}{dialogDescriptionDate}, {dialogDescriptionTime})
+                  {isPrepBaristaShift && <span className="block text-xs text-muted-foreground mt-1">(Note: This is a paired Prep/Barista shift. Worker will cover both AM/PM blocks.)</span>}
+                </DialogDescription>
+              )}
+            </DialogHeader>
 
-        {isLoading && (
-          <div className="flex flex-col items-center justify-center h-40">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="ml-2 mt-2">Loading shift details...</p>
+            {isLoading && (
+              <div className="flex flex-col items-center justify-center h-40">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <p className="ml-2 mt-2">Loading shift details...</p>
+              </div>
+            )}
+
+            {error && (
+              <Alert variant="destructive">
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {shiftDetails && !isLoading && !error && (
+              <div className="grid gap-4 py-8">
+                {renderPrimaryAssignmentSlot()}
+                {renderTrainingAssignmentSlot()} {/* This will return null for Prep Barista based on its internal logic */}
+
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
+              <Button
+                type="submit"
+                disabled={isLoading || isSaving || !shiftDetails || Object.values(timeValidationErrors).some(err => !!err)}
+                onClick={handleSaveChanges}
+              >
+                {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </DialogFooter>
           </div>
-        )}
-
-        {error && (
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {shiftDetails && !isLoading && !error && (
-          <div className="grid gap-4 py-4">
-            {renderPrimaryAssignmentSlot()}
-            {renderTrainingAssignmentSlot()} {/* This will return null for Prep Barista based on its internal logic */}
-            
-            {/* <pre className="mt-4 p-2 bg-muted text-xs rounded-md overflow-x-auto">
-              {JSON.stringify({ shiftContext, isNewShift, shiftDetails, draftAssignments }, null, 2)}
-            </pre> */}
-          </div>
-        )}
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleClose} disabled={isLoading}>Cancel</Button>
-          <Button 
-            type="submit" 
-            disabled={isLoading || isSaving || !shiftDetails || Object.values(timeValidationErrors).some(err => !!err)}
-            onClick={handleSaveChanges}
-          >
-            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            {isSaving ? 'Saving...' : 'Save Changes'}
-          </Button>
-        </DialogFooter>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
 import Image from "next/image"
+import Cookies from "js-cookie"
 import { Separator } from "@/components/ui/separator"
 import { cn, formatLocationName } from "@/lib/utils"
 import { supabase } from "@/lib/supabase/client"
@@ -38,7 +39,9 @@ export function SidebarNav() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
+    Cookies.remove("last-activity", { path: "/" })
     router.push("/login")
+    router.refresh() // Ensures middleware is re-run and state is cleared
   }
 
   useEffect(() => {
@@ -106,9 +109,9 @@ export function SidebarNav() {
   }, []) // Empty dependency array means this runs once on mount
 
   return (
-    <div className="flex h-screen w-76 flex-col border-r bg-white p-8">
-      <div className="mb-8 flex items-center space-x-0 px-1 mt-20"> 
-        <div className="rounded-sm shadow-sm">
+    <div className="flex h-screen lg:w-60 xl:w-64 2xl:w-80 flex-col border-r bg-white p-8">
+      <div className="mb-8 flex items-center space-x-0 px-1 mt-24 2xl:mt-20"> 
+        <div className="rounded-sm shadow-sm hidden 2xl:block">
           <Image
           src="/rose_logo.png"
           alt="Rosette & Co. Logo"
@@ -117,7 +120,7 @@ export function SidebarNav() {
           className="h-16 w-16"
           />
         </div>
-        <h1 className="text-xl font-semibold text-charcoalcocoa px-4">Rosette & Co.</h1> 
+        <h1 className="text-lg 2xl:text-xl font-semibold text-charcoalcocoa px-4">Rosette & Co.</h1> 
       </div>
 
       {/* Navigation Links */}
@@ -128,14 +131,14 @@ export function SidebarNav() {
             (item.href && item.href !== "/" && pathname.startsWith(item.href)); // Adjusted to handle root and other paths
 
           const linkClasses = cn(
-            "group flex items-center rounded-xl px-4 py-3 gap-1 text-sm font-semibold transition-all duration-200",
+            "group flex items-center rounded-xl px-4 py-3 gap-1 lg:text-xs 2xl:text-sm font-semibold transition-all duration-200",
             isActive
               ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
               : "text-charcoalcocoa hover:bg-lavendercream"
           );
 
           const iconClasses = cn(
-            "mr-3 h-5 w-5 flex-shrink-0",
+            "mr-3 w-4 h-4 2xl:h-5 2xl:w-5 flex-shrink-0",
             isActive
               ? "text-charcoalcocoa"
               : "text-charcoalcocoa group-hover:text-charcoalcocoa"
@@ -162,7 +165,7 @@ export function SidebarNav() {
             onClick={() => setIsScheduleOpen(!isScheduleOpen)}
             disabled={isLoadingLocations} // Disable button while loading
             className={cn(
-              "group flex w-full items-center rounded-xl px-4 py-3 gap-1 text-left text-sm font-semibold transition-all duration-200", 
+              "group flex w-full items-center rounded-xl px-4 py-3 gap-1 text-left lg:text-xs 2xl:text-sm font-semibold transition-all duration-200", 
               pathname.startsWith("/schedule")
                 ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
                 : "text-charcoalcocoa hover:bg-lavendercream transition-colors duration-200",
@@ -171,7 +174,7 @@ export function SidebarNav() {
           >
             <CalendarDays
               className={cn(
-                "mr-3 h-5 w-5 flex-shrink-0", // Adjusted margin, icon size
+                "mr-3 h-4 w-4 2xl:h-5 2xl:w-5 flex-shrink-0",
                 pathname.startsWith("/schedule")
                   ? "text-charcoalcocoa"
                   : "text-charcoalcocoa group-hover:text-charcoalcocoa"
@@ -195,7 +198,7 @@ export function SidebarNav() {
                     key={loc.name}
                     href={loc.href}
                     className={cn(
-                      "group flex items-center rounded-md px-3 py-2 text-sm font-medium", 
+                      "group flex items-center rounded-md px-3 py-2 lg:text-xs 2xl:text-sm font-medium", 
                       pathname === loc.href
                         ? "text-[#A597CE] font-semibold" 
                         : "text-charcoalcocoa hover:bg-lavendercream"
@@ -218,7 +221,7 @@ export function SidebarNav() {
       <div className="mt-auto">
         <Separator className="my-2 bg-verylightbeige" />
         <div className="flex items-center space-x-2 pt-6 pl-1">
-          <UserCircle className="h-9 w-9 rounded-full text-lavendercream" />
+          <UserCircle className="w-7 h-7 2xl:h-9 2xl:w-9 rounded-full text-lavendercream" />
           <div>
             {isLoadingUser ? (
               <p className="text-xs font-semibold text-charcoalcocoa">Loading...</p>
@@ -233,9 +236,9 @@ export function SidebarNav() {
         <div className="mt-4">
           <button
             onClick={handleLogout}
-            className="group flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-charcoalcocoa/60 transition-colors hover:bg-roseblush/20 hover:text-charcoalcocoa"
+            className="group flex w-full items-center rounded-xl px-3 py-2.5 text-left text-xs 2xl:text-sm font-semibold text-charcoalcocoa/60 transition-colors hover:bg-roseblush/20 hover:text-charcoalcocoa"
           >
-            <LogOut className="mr-3 h-5 w-5 flex-shrink-0" />
+            <LogOut className="mr-3 h-4 w-4 2xl:h-5 2xl:w-5 flex-shrink-0" />
             <p className="pl-1">Logout</p>
           </button>
         </div>

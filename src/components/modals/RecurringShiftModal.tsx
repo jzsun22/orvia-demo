@@ -5,12 +5,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue } from '@/components/ui/select';
 import { Location } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
-import { capitalizeWords } from '@/lib/utils';
 import { formatLocationName } from '@/lib/utils';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { APP_TIMEZONE } from '@/lib/scheduling/time-utils';
+import { formatInTimeZone } from 'date-fns-tz';
 
 interface RecurringShift {
   id: string;
@@ -36,19 +42,22 @@ interface RecurringShiftModalProps {
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
-// Add a utility function for time formatting
-const formatTime = (time: string) => {
-  // Parse the 24hr time
-  const [hours, minutes] = time.split(':');
-  const date = new Date();
-  date.setHours(parseInt(hours), parseInt(minutes));
-
-  // Format to 12hr time
-  return date.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true
-  });
+// Use timezone-aware formatter
+const formatTime12hr = (timeStr: string | undefined | null): string => {
+  if (!timeStr) return '';
+  try {
+    // We need a full date to format with timezone, so we create one from today
+    // The date part is arbitrary; we only care about the time in PT.
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes);
+    
+    // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
+    return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a').toUpperCase();
+  } catch (error) {
+    console.warn(`Error formatting time ${timeStr}:`, error);
+    return timeStr; // Fallback to original string if parsing/formatting fails
+  }
 };
 
 // Add this utility function at the top with other constants
@@ -189,12 +198,19 @@ export function RecurringShiftModal({
       return;
     }
     // Find all end times for the selected start time
-    const endTimeOptions = filteredShiftTemplates.filter(template => template.start_time === startTime);
-    if (endTimeOptions.length === 1) {
-      const template = endTimeOptions[0];
-      setEndTime(template.end_time);
-      setSelectedTemplateId(template.id);
-      setAssignmentType(template.lead_type ? 'lead' : 'regular');
+    const endTimeSet = new Set(filteredShiftTemplates
+      .filter(template => template.start_time === startTime)
+      .map(template => template.end_time));
+    const uniqueEndTimeOptions = Array.from(endTimeSet);
+    
+    // Auto-select end time if only one option exists for the selected start time
+    if (uniqueEndTimeOptions.length === 1) {
+      const template = filteredShiftTemplates.find(t => t.start_time === startTime && t.end_time === uniqueEndTimeOptions[0]);
+      if (template) {
+        setEndTime(template.end_time);
+        setSelectedTemplateId(template.id);
+        setAssignmentType(template.lead_type ? 'lead' : 'regular');
+      }
     } else {
       setEndTime('');
       setSelectedTemplateId('');
@@ -421,233 +437,246 @@ export function RecurringShiftModal({
     return acc;
   }, [] as typeof filteredShiftTemplates);
 
+  const getUniqueStartTimes = () => {
+    const startTimeSet = new Set(filteredShiftTemplates.map(template => template.start_time));
+    return Array.from(startTimeSet).sort();
+  };
+
+  const getUniqueEndTimesForStartTime = (selectedStartTime: string): string[] => {
+    if (!selectedStartTime) {
+      return [];
+    }
+    const endTimeSet = new Set(
+      filteredShiftTemplates
+        .filter(template => template.start_time === selectedStartTime)
+        .map(template => template.end_time)
+    );
+    return Array.from(endTimeSet).sort();
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] bg-background">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-manrope font-medium">
-            {isEditing ? 'Edit Recurring Shift' : 'Add Recurring Shift'}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="bg-background p-0 border-[1.5px] border-verylightbeige">
+        <ScrollArea className="max-h-[380px] xl:max-h-[600px] 2xl:max-h-full">
+          <div className="p-8 xl:p-6">
+            <DialogHeader>
+              <DialogTitle className="text-lg 2xl:text-xl font-manrope font-medium mb-4">
+                {isEditing ? 'Edit Recurring Shift' : 'Add Recurring Shift'}
+              </DialogTitle>
+            </DialogHeader>
 
-        <div className="space-y-6">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Day of Week</Label>
-              <Select value={dayOfWeek} onValueChange={setDayOfWeek} disabled={isEditing}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select day" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DAYS_OF_WEEK.map((day) => (
-                    <SelectItem key={day} value={day}>
-                      {day}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            <div className="space-y-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-xs 2xl:text-sm">Day of Week</Label>
+                  <Select value={dayOfWeek} onValueChange={setDayOfWeek} disabled={isEditing}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select day" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DAYS_OF_WEEK.map((day) => (
+                        <SelectItem key={day} value={day}>
+                          {day}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label>Location</Label>
-              <Select value={locationId} onValueChange={setLocationId} disabled={isEditing}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location">
-                    {locationId ? formatLocationName(locations.find(loc => loc.id === locationId)?.name) : "Select location"}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((location) => (
-                    <SelectItem key={location.id} value={location.id}>
-                      {formatLocationName(location.name)}
-                    </SelectItem>
-                  ))}
-                  {locations.length === 0 && (
-                    <div className="p-2 text-sm text-muted-foreground">Loading locations...</div>
-                  )}
-                </SelectContent>
-              </Select>
-            </div>
+                <div className="space-y-2">
+                  <Label className="text-xs 2xl:text-sm">Location</Label>
+                  <Select value={locationId} onValueChange={setLocationId} disabled={isEditing}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location">
+                        {locationId ? formatLocationName(locations.find(loc => loc.id === locationId)?.name) : "Select location"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {locations.map((location) => (
+                        <SelectItem key={location.id} value={location.id}>
+                          {formatLocationName(location.name)}
+                        </SelectItem>
+                      ))}
+                      {locations.length === 0 && (
+                        <div className="p-2 text-sm text-muted-foreground">Loading locations...</div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
 
-            <div className="space-y-2">
-              <Label>Position</Label>
-              <Select
-                value={positionId}
-                onValueChange={setPositionId}
-                disabled={!locationId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={locationId ? "Select position" : "Select a location first"}>
-                    {positionId && allPositions.find(p => p.id === positionId)?.name}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {filteredPositions.map((position) => (
-                    <SelectItem key={position.id} value={position.id}>
-                      {position.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-2">
-                <Label>Start Time</Label>
-                <Select
-                  value={startTime}
-                  onValueChange={setStartTime}
-                  disabled={!locationId || !positionId || !dayOfWeek}
-                >
-                  <SelectTrigger>
-                    <SelectValue
-                      placeholder={
-                        !locationId
-                          ? 'Select a location first'
-                          : !positionId
-                            ? 'Select a position first'
-                            : !dayOfWeek
-                              ? 'Select a day of week first'
-                              : 'Select start time'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {uniqueStartTimeTemplates.map(template => (
-                      <SelectItem key={template.id} value={template.start_time}>
-                        {formatTime(template.start_time)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>End Time</Label>
-                <Select
-                  value={selectedTemplateId}
-                  onValueChange={(templateId) => {
-                    const template = filteredShiftTemplates.find(t => t.id === templateId);
-                    if (template) {
-                      setSelectedTemplateId(template.id);
-                      setEndTime(template.end_time);
-                      setAssignmentType(template.lead_type ? 'lead' : 'regular');
-                    }
-                  }}
-                  disabled={!startTime}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select end time">
-                      {endTime ? formatTime(endTime) : 'Select end time'}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {filteredShiftTemplates
-                      .filter(template => template.start_time === startTime)
-                      .map((template, _index, array) => {
-                        const isDuplicate = array.some(t => t.id !== template.id && t.end_time === template.end_time);
-                        const type = template.lead_type ? 'Lead' : 'Regular';
-                        const label = formatTime(template.end_time);
-
-                        return (
-                          <SelectItem key={template.id} value={template.id}>
-                            {isDuplicate ? `${label} (${type})` : label}
+                <div className="space-y-2">
+                  <Label className="text-xs 2xl:text-sm">Position</Label>
+                  <Select
+                    value={positionId}
+                    onValueChange={setPositionId}
+                    disabled={!locationId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={locationId ? "Select position" : "Select a location first"}>
+                        {positionId && allPositions.find(p => p.id === positionId)?.name}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {filteredPositions.map((position) => (
+                        <SelectItem key={position.id} value={position.id}>
+                          {position.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <Label className="text-xs 2xl:text-sm">Start Time</Label>
+                    <Select
+                      value={startTime}
+                      onValueChange={setStartTime}
+                      disabled={!locationId || !positionId || !dayOfWeek}
+                    >
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            !locationId
+                              ? 'Select a location first'
+                              : !positionId
+                                ? 'Select a position first'
+                                : !dayOfWeek
+                                  ? 'Select a day of week first'
+                                  : 'Select start time'
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getUniqueStartTimes().map((time, index) => (
+                          <SelectItem key={index} value={time}>
+                            {formatTime12hr(time)}
                           </SelectItem>
-                        );
-                      })}
-                  </SelectContent>
-                </Select>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs 2xl:text-sm">End Time</Label>
+                    <Select
+                      value={selectedTemplateId}
+                      onValueChange={(templateId) => {
+                        const template = filteredShiftTemplates.find(t => t.id === templateId);
+                        if (template) {
+                          setSelectedTemplateId(template.id);
+                          setEndTime(template.end_time);
+                          setAssignmentType(template.lead_type ? 'lead' : 'regular');
+                        }
+                      }}
+                      disabled={!startTime}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select end time">
+                          {endTime ? formatTime12hr(endTime) : 'Select end time'}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {getUniqueEndTimesForStartTime(startTime).map((time, index) => (
+                          <SelectItem key={index} value={time}>
+                            {formatTime12hr(time)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs 2xl:text-sm">Assignment Type</Label>
+                  <div className="flex gap-4">
+                    <label htmlFor="assignment-regular" className="flex items-center cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        id="assignment-regular"
+                        name="assignmentType"
+                        value="regular"
+                        checked={assignmentType === 'regular'}
+                        onChange={() => setAssignmentType('regular')}
+                        className="peer sr-only"
+                      />
+                      <span
+                        className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'regular' ? 'bg-accent' : 'bg-transparent'} transition`}
+                        />
+                      </span>
+                      <span className={
+                        `text-sm font-medium transition-colors duration-200 ${assignmentType === 'regular' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
+                      }>
+                        Regular
+                      </span>
+                    </label>
+                    <label htmlFor="assignment-lead" className="flex items-center cursor-pointer select-none">
+                      <input
+                        type="radio"
+                        id="assignment-lead"
+                        name="assignmentType"
+                        value="lead"
+                        checked={assignmentType === 'lead'}
+                        onChange={() => setAssignmentType('lead')}
+                        className="peer sr-only"
+                      />
+                      <span
+                        className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'lead' ? 'bg-accent' : 'bg-transparent'} transition`}
+                        />
+                      </span>
+                      <span className={
+                        `text-sm font-medium transition-colors duration-200 ${assignmentType === 'lead' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
+                      }>
+                        Lead
+                      </span>
+                    </label>
+                    <label htmlFor="assignment-training" className="flex items-center cursor-not-allowed select-none opacity-60">
+                      <input
+                        type="radio"
+                        id="assignment-training"
+                        name="assignmentType"
+                        value="training"
+                        checked={assignmentType === 'training'}
+                        onChange={() => { }}
+                        className="peer sr-only"
+                        disabled
+                      />
+                      <span
+                        className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors duration-200`}
+                      >
+                        <span
+                          className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'training' ? 'bg-accent' : 'bg-transparent'} transition`}
+                        />
+                      </span>
+                      <span className={
+                        `text-sm transition-colors duration-200 text-ashmocha font-medium`
+                      }>
+                        Training
+                      </span>
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Assignment Type</Label>
-              <div className="flex gap-4">
-                <label htmlFor="assignment-regular" className="flex items-center cursor-pointer select-none">
-                  <input
-                    type="radio"
-                    id="assignment-regular"
-                    name="assignmentType"
-                    value="regular"
-                    checked={assignmentType === 'regular'}
-                    onChange={() => setAssignmentType('regular')}
-                    className="peer sr-only"
-                  />
-                  <span
-                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
-                  >
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'regular' ? 'bg-accent' : 'bg-transparent'} transition`}
-                    />
-                  </span>
-                  <span className={
-                    `text-sm font-medium transition-colors duration-200 ${assignmentType === 'regular' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
-                  }>
-                    Regular
-                  </span>
-                </label>
-                <label htmlFor="assignment-lead" className="flex items-center cursor-pointer select-none">
-                  <input
-                    type="radio"
-                    id="assignment-lead"
-                    name="assignmentType"
-                    value="lead"
-                    checked={assignmentType === 'lead'}
-                    onChange={() => setAssignmentType('lead')}
-                    className="peer sr-only"
-                  />
-                  <span
-                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors peer-checked:border-accent peer-checked:border-2 duration-200`}
-                  >
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'lead' ? 'bg-accent' : 'bg-transparent'} transition`}
-                    />
-                  </span>
-                  <span className={
-                    `text-sm font-medium transition-colors duration-200 ${assignmentType === 'lead' ? 'text-charcoalcocoa' : 'text-ashmocha font-medium'}`
-                  }>
-                    Lead
-                  </span>
-                </label>
-                <label htmlFor="assignment-training" className="flex items-center cursor-not-allowed select-none opacity-60">
-                  <input
-                    type="radio"
-                    id="assignment-training"
-                    name="assignmentType"
-                    value="training"
-                    checked={assignmentType === 'training'}
-                    onChange={() => { }}
-                    className="peer sr-only"
-                    disabled
-                  />
-                  <span
-                    className={`h-5 w-5 mr-2 rounded-full border-[1.5px] border-ashmocha bg-white flex items-center justify-center transition-colors duration-200`}
-                  >
-                    <span
-                      className={`h-2.5 w-2.5 rounded-full ${assignmentType === 'training' ? 'bg-accent' : 'bg-transparent'} transition`}
-                    />
-                  </span>
-                  <span className={
-                    `text-sm transition-colors duration-200 text-ashmocha font-medium`
-                  }>
-                    Training
-                  </span>
-                </label>
+
+              {error && (
+                <p className="text-sm text-errorred">{error}</p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-8">
+                <Button variant="outline" onClick={handleClose}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSave} disabled={loading}>
+                  {loading ? 'Saving...' : isEditing ? 'Update' : 'Add'}
+                </Button>
               </div>
             </div>
           </div>
-
-          {error && (
-            <p className="text-sm text-errorred">{error}</p>
-          )}
-
-          <div className="flex justify-end gap-2 pt-8">
-            <Button variant="outline" onClick={handleClose}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={loading}>
-              {loading ? 'Saving...' : isEditing ? 'Update' : 'Add'}
-            </Button>
-          </div>
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );

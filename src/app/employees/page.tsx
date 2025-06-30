@@ -173,28 +173,23 @@ export default function EmployeesPage() {
         <div className="mb-8">
           <div>
             <div className="flex items-baseline gap-3">
-              <h1 className="text-3xl font-bold">Employees</h1>
-              {!loading && (
-                <span className="text-gray-500">
-                  ({filteredWorkers.length} shown)
-                </span>
-              )}
+              <h1 className="text-2xl 2xl:text-3xl font-bold">Employees</h1>
             </div>
-            <p className="text-ashmocha text-base pt-2">View, manage, and update team members.</p>
+            <p className="text-ashmocha text-sm 2xl:text-base pt-2">View, manage, and update team members.</p>
           </div>
         </div>
 
         {/* Search and Filter */}
         <div className="mb-6 flex flex-wrap gap-4 items-center justify-between">
           <div className="flex flex-wrap gap-4 items-center">
-            <div className="relative w-full md:w-96">
+            <div className="relative w-72 2xl:w-96">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 type="text"
                 placeholder="Search employees by name..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 w-full"
+                className="pl-10 w-full placeholder-gray-400 text-xs xl:text-sm"
                 disabled={!!loading}
               />
             </div>
@@ -204,7 +199,7 @@ export default function EmployeesPage() {
                 <Button
                   className="flex items-center justify-between border-2 !border-input whitespace-nowrap bg-white hover:ring-1 hover:ring-roseblush hover:bg-white data-[state=open]:ring-2 data-[state=open]:ring-ring data-[state=open]:border-1 data-[state=open]:ring-offset-2 shadow-sm rounded-md transition-all"
                   disabled={!allLocations}>
-                  <div className="flex items-center text-muted-foreground font-normal">
+                  <div className="flex items-center text-muted-foreground font-normal text-xs xl:text-sm">
                     <span className="mr-1">Location:</span>
                     <span>
                       {locationFilter.length === 0
@@ -238,7 +233,7 @@ export default function EmployeesPage() {
                 <Button
                   className="flex items-center justify-between border-2 !border-input whitespace-nowrap bg-white hover:ring-1 hover:ring-roseblush hover:bg-white data-[state=open]:ring-2 data-[state=open]:ring-ring data-[state=open]:border-1 data-[state=open]:ring-offset-2 shadow-sm rounded-md transition-all"
                   disabled={!allPositions}>
-                  <div className="flex items-center text-muted-foreground font-normal">
+                  <div className="flex items-center text-muted-foreground font-normal text-xs xl:text-sm">
                     <span className="mr-1">Role:</span>
                     <span>
                       {roleFilter.length === 0
@@ -269,10 +264,10 @@ export default function EmployeesPage() {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className={cn("flex items-center gap-2 px-4 h-11 py-2 bg-deeproseblush text-white text-sm font-semibold rounded-lg hover:bg-deeproseblush/90 transition-all duration-200 hover:shadow-sm", { "opacity-50 cursur-not-allowed pointer-events-none": loading, })}
+            className={cn("flex items-center gap-2 px-6 h-9 2xl:h-11 py-2 bg-deeproseblush text-white text-sm font-semibold rounded-lg hover:bg-deeproseblush/90 transition-all duration-200 hover:shadow-sm", { "opacity-50 cursur-not-allowed pointer-events-none": loading, })}
             disabled={!!loading}
           >
-            <PlusCircle className="h-5 w-5" />
+            <PlusCircle className="h-4 w-4 2xl:h-5 2xl:w-5" />
             Add Employee
           </button>
         </div>
@@ -286,16 +281,32 @@ export default function EmployeesPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-oatbeige/60">
                   <tr>
-                    <th scope="col" className="py-4 pl-8 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Name</th>
-                    <th scope="col" className="py-4 px-0 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Role</th>
-                    <th scope="col" className="py-4 px-2 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Locations</th>
-                    <th scope="col" className="py-4 pr-6 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Actions</th>
+                    <th scope="col" className="py-4 pl-8 text-left text-xs xl:text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Name</th>
+                    <th
+                      scope="col"
+                      className="py-4 px-0 text-left text-xs xl:text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden lg:table-cell xl:hidden"
+                    >
+                      Role & Locations
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-4 px-0 text-left text-xs xl:text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden xl:table-cell"
+                    >
+                      Role
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-4 px-2 text-left text-xs xl:text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden xl:table-cell"
+                    >
+                      Locations
+                    </th>
+                    <th scope="col" className="py-4 pr-6 text-left text-xs xl:text-sm font-medium text-charcoalcocoa uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredWorkers.map((worker) => (
                     <tr key={worker.id} className="odd:bg-almondmilk/30 even:bg-white">
-                      <td className="py-6 pl-8 whitespace-nowrap text-sm">
+                      <td className="py-6 pl-8 whitespace-nowrap text-xs xl:text-sm">
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{formatWorkerName(worker.first_name, worker.last_name, worker.preferred_name)}</span>
                           <>
@@ -312,11 +323,28 @@ export default function EmployeesPage() {
                           </>
                         </div>
                       </td>
-                      <td className="py-6 px-0 text-sm">{`${worker.job_level} - ${worker.positions.map(p => p.position.name).join(', ')}`}</td>
-                      <td className="py-6 px-2 text-sm">
+                      <td className="py-6 pr-4 text-xs xl:text-sm hidden lg:table-cell xl:hidden">
+                        {(() => {
+                          const posMap = new Map<string, Set<string>>();
+                          worker.positions.forEach((p) => {
+                            const posName = p.position.name;
+                            if (!posMap.has(posName)) posMap.set(posName, new Set());
+                            worker.locations.forEach(l => {
+                              posMap.get(posName)?.add(formatLocationName(l.location.name));
+                            });
+                          });
+                          return Array.from(posMap.entries()).map(([posName, locSet], idx, arr) => (
+                            <span key={posName}>
+                              {posName} @ {Array.from(locSet).join(', ')}{idx !== arr.length - 1 ? ', ' : ''}
+                            </span>
+                          ));
+                        })()}
+                      </td>
+                      <td className="py-6 px-0 text-xs xl:text-sm hidden xl:table-cell">{`${worker.job_level} - ${worker.positions.map(p => p.position.name).join(', ')}`}</td>
+                      <td className="py-6 px-2 text-xs xl:text-sm hidden xl:table-cell">
                         {worker.locations.map(l => formatLocationName(l.location.name)).join(', ')}
                       </td>
-                      <td className="py-6 pr-6 text-sm">
+                      <td className="py-6 pr-6 text-xs xl:text-sm">
                         <div className="flex gap-2">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -326,11 +354,11 @@ export default function EmployeesPage() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="start" className='border-[#C8BEDF]'>
-                              <DropdownMenuItem onClick={() => handleEditInfoClick(worker)} className="flex items-center gap-2 pr-4 cursor-pointer focus:bg-lavendercream">
+                              <DropdownMenuItem onClick={() => handleEditInfoClick(worker)} className="flex text-xs 2xl:text-sm items-center gap-2 pr-4 cursor-pointer focus:bg-lavendercream">
                                 <Contact className="h-4 w-4" />
                                 Personal Info
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleWorkSettingsClick(worker)} className="flex items-center gap-2 pr-4 cursor-pointer focus:bg-lavendercream">
+                              <DropdownMenuItem onClick={() => handleWorkSettingsClick(worker)} className="flex text-xs 2xl:text-sm items-center gap-2 pr-4 cursor-pointer focus:bg-lavendercream">
                                 <Briefcase className="h-4 w-4" />
                                 Job Details
                               </DropdownMenuItem>

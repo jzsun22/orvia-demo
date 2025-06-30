@@ -7,13 +7,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { workSettingsSchema, type WorkSettingsFormData } from '@/lib/schemas/employee';
 import { supabase } from '@/lib/supabase/client';
 import { fetchAllLocations } from '@/lib/supabase';
 import { Location, Position } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { formatLocationName } from '@/lib/utils';
-import { Separator } from 'react-aria-components';
 
 interface FetchedLocationPosition {
   id: string;
@@ -88,7 +88,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
       fetchInitialData();
     }
   }, [isOpen]);
-  
+
   useEffect(() => {
     if (isOpen && employee) {
       reset({
@@ -161,105 +161,109 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md bg-background">
-        <DialogHeader className="pb-1">
-          <DialogTitle className="text-lg font-manrope font-medium">
-            Edit Work Settings for {' '}
-            <span className="font-bold">
-            {employee.first_name} {employee.last_name}
-            </span>
-          </DialogTitle>
-        </DialogHeader>
-        {error && <p className="text-sm text-errorred text-center mb-4">{error}</p>}
-        {loading && !error && <p className="text-sm text-muted-foreground text-center mb-4">Loading data...</p>}
-        
-        {!loading && !error && (
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <Controller
-              name="location_ids"
-              control={control}
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Locations</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {allLocations.map((location) => (
-                      <div key={location.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`location-${location.id}`}
-                          checked={field.value?.includes(location.id)}
-                          onCheckedChange={(checked) => {
-                            const newValue = checked
-                              ? [...(field.value || []), location.id]
-                              : (field.value || []).filter((id) => id !== location.id);
-                            field.onChange(newValue);
-                          }}
-                        />
-                        <Label htmlFor={`location-${location.id}`} className="font-normal">{formatLocationName(location.name)}</Label>
-                      </div>
-                    ))}
-                  </div>
-                  {errors.location_ids && <p className="text-sm text-red-500">{errors.location_ids.message}</p>}
-                </div>
-              )}
-            />
+      <DialogContent className="bg-background p-0 border-[1.5px] border-verylightbeige">
+        <ScrollArea className="max-h-[420px] xl:max-h-[600px] 2xl:max-h-full">
+          <div className="p-6 2xl:p-8">
+            <DialogHeader className="pb-1">
+              <DialogTitle className="text-lg font-manrope font-medium">
+                Edit Work Settings for {' '}
+                <span className="font-bold">
+                  {employee.first_name} {employee.last_name}
+                </span>
+              </DialogTitle>
+            </DialogHeader>
+            {error && <p className="text-sm text-errorred text-center mb-4">{error}</p>}
+            {loading && !error && <p className="text-sm text-muted-foreground text-center mb-4">Loading data...</p>}
 
-            <Controller
-              name="positions"
-              control={control}
-              render={({ field }) => (
-                <div className="space-y-2">
-                  <Label>Positions</Label>
-                  <div className="grid grid-cols-2 gap-4">
-                    {filteredPositions.map((position) => (
-                      <div key={position.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`position-${position.id}`}
-                          checked={field.value?.includes(position.id)}
-                          onCheckedChange={(checked) => {
-                            const newValue = checked
-                              ? [...(field.value || []), position.id]
-                              : (field.value || []).filter((id) => id !== position.id);
-                            field.onChange(newValue);
-                          }}
-                        />
-                        <Label htmlFor={`position-${position.id}`} className="font-normal">{position.name}</Label>
+            {!loading && !error && (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 2xl:space-y-6">
+                <Controller
+                  name="location_ids"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="space-y-2">
+                      <Label className="text-xs 2xl:text-sm">Locations</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {allLocations.map((location) => (
+                          <div key={location.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`location-${location.id}`}
+                              checked={field.value?.includes(location.id)}
+                              onCheckedChange={(checked) => {
+                                const newValue = checked
+                                  ? [...(field.value || []), location.id]
+                                  : (field.value || []).filter((id) => id !== location.id);
+                                field.onChange(newValue);
+                              }}
+                            />
+                            <Label htmlFor={`location-${location.id}`} className="text-xs 2xl:text-sm">{formatLocationName(location.name)}</Label>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  {filteredPositions.length === 0 && watchLocationIds && watchLocationIds.length > 0 && <p className="text-sm text-muted-foreground">No positions for selected locations.</p>}
-                  {(!watchLocationIds || watchLocationIds.length === 0) && <p className="text-sm text-muted-foreground">Select a location to see positions.</p>}
-                  {errors.positions && <p className="text-sm text-red-500">{errors.positions.message}</p>}
-                </div>
-              )}
-            />
-
-            <Controller
-                name="is_lead"
-                control={control}
-                render={({ field }) => (
-                    <div className="flex items-center space-x-2 pt-2">
-                        <Checkbox
-                            id="is_lead"
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                        />
-                        <Label htmlFor="is_lead" className="text-sm font-normal">
-                            Can be assigned as Opening/Closing Lead
-                        </Label>
+                      {errors.location_ids && <p className="text-sm text-errorred">{errors.location_ids.message}</p>}
                     </div>
-                )}
-            />
+                  )}
+                />
 
-            <div className="flex justify-end gap-2 pt-8 mt-6">
-              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading}>
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
-            </div>
-          </form>
-        )}
+                <Controller
+                  name="positions"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="space-y-2">
+                      <Label className="text-xs 2xl:text-sm">Positions</Label>
+                      <div className="grid grid-cols-2 gap-4">
+                        {filteredPositions.map((position) => (
+                          <div key={position.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`position-${position.id}`}
+                              checked={field.value?.includes(position.id)}
+                              onCheckedChange={(checked) => {
+                                const newValue = checked
+                                  ? [...(field.value || []), position.id]
+                                  : (field.value || []).filter((id) => id !== position.id);
+                                field.onChange(newValue);
+                              }}
+                            />
+                            <Label htmlFor={`position-${position.id}`} className="text-xs 2xl:text-sm">{position.name}</Label>
+                          </div>
+                        ))}
+                      </div>
+                      {filteredPositions.length === 0 && watchLocationIds && watchLocationIds.length > 0 && <p className="text-sm text-muted-foreground">No positions for selected locations.</p>}
+                      {(!watchLocationIds || watchLocationIds.length === 0) && <p className="text-sm text-muted-foreground">Select a location to see positions.</p>}
+                      {errors.positions && <p className="text-sm text-errorred">{errors.positions.message}</p>}
+                    </div>
+                  )}
+                />
+
+                <Controller
+                  name="is_lead"
+                  control={control}
+                  render={({ field }) => (
+                    <div className="flex items-center space-x-2 pt-2">
+                      <Checkbox
+                        id="is_lead"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                      <Label htmlFor="is_lead" className="text-xs 2xl:text-sm font-normal">
+                        Can be assigned as Opening/Closing Lead
+                      </Label>
+                    </div>
+                  )}
+                />
+
+                <div className="flex justify-end gap-2 pt-8 mt-6">
+                  <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
