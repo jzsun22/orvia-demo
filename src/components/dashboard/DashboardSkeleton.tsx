@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 const DashboardSkeleton = () => {
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 lg:gap-6 2xl:gap-8">
         {Array.from({ length: 3 }).map((_, i) => (
           <div
             key={i}

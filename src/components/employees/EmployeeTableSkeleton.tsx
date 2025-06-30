@@ -16,13 +16,19 @@ const EmployeeTableSkeleton = () => {
               </th>
               <th
                 scope="col"
-                className="py-4 px-0 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider"
+                className="py-4 pr-4 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden lg:table-cell xl:hidden"
+              >
+                <Skeleton className="h-4 w-40" />
+              </th>
+              <th
+                scope="col"
+                className="py-4 px-0 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden xl:table-cell"
               >
                 <Skeleton className="h-4 w-24" />
               </th>
               <th
                 scope="col"
-                className="py-4 px-2 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider"
+                className="py-4 px-2 text-left text-sm font-medium text-charcoalcocoa uppercase tracking-wider hidden xl:table-cell"
               >
                 <Skeleton className="h-4 w-32" />
               </th>
@@ -37,13 +43,16 @@ const EmployeeTableSkeleton = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {Array.from({ length: 16 }).map((_, i) => (
               <tr key={i}>
-                <td className="py-6 pl-8">
-                  <Skeleton className="h-5 w-40" />
+                <td className="py-6 pl-8 pr-4">
+                  <Skeleton className="h-5 w-24 xl:w-40" />
                 </td>
-                <td className="py-6 px-2">
+                <td className="py-6 pr-4 hidden lg:table-cell xl:hidden">
+                  <Skeleton className="h-5 xl:w-64" />
+                </td>
+                <td className="py-6 px-2 hidden xl:table-cell">
                   <Skeleton className="h-5 w-48" />
                 </td>
-                <td className="py-6 px-2">
+                <td className="py-6 px-2 hidden xl:table-cell">
                   <Skeleton className="h-5 w-32" />
                 </td>
                 <td className="py-6 pr-6">
