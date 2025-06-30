@@ -1,5 +1,33 @@
 # 🟢 Changelog — Orvia
 
+## [1.0.3] — 2025-06-28
+
+### ✅ Implemented
+- MAJOR UI REVAMP!!
+    - Pages are now responsive!
+- Optimize employee page layout
+- Auto-cleanup of weekly schedules older than 12 weeks via Supabase Cron job
+- Scheduling logic improvement: same worker cross-location validation
+- Collapsible side navigation bar
+- App-wise swr integration
+- Enforce Pacific timezone in app
+- Authentication auto-timeout after certain period of inactivity
+- Informative dashboard which contains:
+    - Current date & week on display
+    - Workers on shift today
+    - Workers' birthday reminders :tada:
+    - This week's stats at a glance
+
+### 🔧 In progress
+- Fine-tuning UI (shadows, animations, etc.)
+
+### 📋 TODO
+- i18n support: Chinese
+- UI: dark mode support
+
+
+---
+
 ## [1.0.2] — 2025-06-14
 
 ### ✅ Implemented
@@ -65,6 +93,5 @@
 - If a worker is active in multiple locations, at least one location should use recurring shifts for better load balancing
 
 ## 📍 Future Enhancements
-- UI revamp
 - Optional database type enforcement
 - Conditional schedule generation with user prefill
