@@ -38,9 +38,8 @@ export default function LoginPage() {
       const fromPath = searchParams.get('from');
       if (fromPath && fromPath.startsWith('/')) {
         router.push(fromPath);
-        router.refresh();
       } else {
-        router.refresh();
+        router.push('/dashboard');
       }
     }
   };

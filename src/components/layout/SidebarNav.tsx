@@ -41,7 +41,6 @@ export function SidebarNav() {
     await supabase.auth.signOut()
     Cookies.remove("last-activity", { path: "/" })
     router.push("/login")
-    router.refresh() // Ensures middleware is re-run and state is cleared
   }
 
   useEffect(() => {
