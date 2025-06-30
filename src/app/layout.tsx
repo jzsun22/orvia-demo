@@ -2,8 +2,7 @@ import type { Metadata } from "next"
 import { Inter, Manrope } from "next/font/google"
 import "@/styles/globals.css"
 import { Toaster } from "@/components/ui/toaster"
-import MainLayoutClient from "@/components/layout/MainLayoutClient";
-import ResponsiveGuard from "@/components/layout/ResponsiveGuard";
+import AppShell from "@/components/layout/AppShell";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" })
@@ -22,9 +21,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning className="h-full bg-white">
       <head />
       <body className={`${inter.variable} ${manrope.variable} font-sans h-full`}>
-        <ResponsiveGuard>
-          <MainLayoutClient>{children}</MainLayoutClient>
-        </ResponsiveGuard>
+        <AppShell>{children}</AppShell>
         <Toaster />
       </body>
     </html>
