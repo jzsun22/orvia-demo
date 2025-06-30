@@ -1,12 +1,16 @@
 import { z } from 'zod';
 import { JobLevel } from '@/lib/types';
+import { CalendarDate } from '@internationalized/date';
 
 export const employeeInfoSchema = z.object({
   first_name: z.string().trim().min(1, 'First name is required'),
   last_name: z.string().trim().min(1, 'Last name is required'),
   preferred_name: z.string().trim().optional(),
   gender: z.enum(['male', 'female', 'non-binary']).optional(),
-  birthday: z.coerce.date().optional(),
+  birthday: z
+    .custom<CalendarDate>((val) => val instanceof CalendarDate, 'Invalid date format')
+    .optional()
+    .nullable(),
   job_level: z.enum(['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'] as [JobLevel, ...JobLevel[]]),
   preferred_hours_per_week: z
     .preprocess(

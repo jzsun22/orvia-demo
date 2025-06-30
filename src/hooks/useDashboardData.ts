@@ -2,7 +2,8 @@
 
 import useSWR from 'swr'
 import { type SupabaseClient } from '@supabase/supabase-js'
-import { startOfWeek, endOfWeek, format, parseISO, isToday } from 'date-fns'
+import { startOfWeek, endOfWeek, format as formatFn, parseISO, isToday } from 'date-fns'
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz'
 import { supabase } from '@/lib/supabase/client'
 import {
   fetchAllLocations,
@@ -11,6 +12,8 @@ import {
   fetchWorkers,
   type ScheduledShiftWithJoins,
 } from '@/lib/supabase'
+
+const APP_TIMEZONE = 'America/Los_Angeles';
 
 // Fetch all workers with birthday field for dashboard birthday logic
 export const fetchWorkersWithBirthday = async (client: SupabaseClient) => {
@@ -31,7 +34,7 @@ export const fetchWorkersWithBirthday = async (client: SupabaseClient) => {
 // Fetch birthdays for the dashboard
 export const birthdayFetcher = async (client: SupabaseClient) => {
   const allWorkers = await fetchWorkersWithBirthday(client)
-  const today = new Date()
+  const today = toZonedTime(new Date(), APP_TIMEZONE);
   const weekStart = startOfWeek(today, { weekStartsOn: 1 })
   const weekEnd = endOfWeek(today, { weekStartsOn: 1 })
 
@@ -59,7 +62,7 @@ export const birthdayFetcher = async (client: SupabaseClient) => {
         ...worker,
         birthdayThisYear: thisYearBirthday,
         isToday: isToday(thisYearBirthday),
-        dayOfWeek: format(thisYearBirthday, 'EEEE'),
+        dayOfWeek: formatFn(thisYearBirthday, 'EEEE'),
       }
     })
 
@@ -76,9 +79,9 @@ export const birthdayFetcher = async (client: SupabaseClient) => {
 // Fetch staff stats for the dashboard
 export const staffStatsFetcher = async (client: SupabaseClient) => {
   const allLocations = await fetchAllLocations(client)
-  const today = new Date()
-  const weekStart = format(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
-  const weekEnd = format(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const today = toZonedTime(new Date(), APP_TIMEZONE);
+  const weekStart = formatFn(startOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
+  const weekEnd = formatFn(endOfWeek(today, { weekStartsOn: 1 }), 'yyyy-MM-dd')
 
   // For each location, gather stats
   const stats = await Promise.all(
@@ -143,7 +146,7 @@ export const dashboardFetcher = async (
     return []
   }
 
-  const today = format(new Date(), 'yyyy-MM-dd')
+  const today = formatInTimeZone(new Date(), APP_TIMEZONE, 'yyyy-MM-dd')
   const { data: todaysScheduledData, error: shiftsError } = await client
     .from('scheduled_shifts')
     .select(

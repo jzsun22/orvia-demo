@@ -35,7 +35,7 @@ import {
 } from "react-aria-components";
 import { Calendar } from '@/components/ui/calendar-rac'
 import { DateInput } from '@/components/ui/datefield-rac'
-import { fromDate, getLocalTimeZone } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 
 interface ExtendedWorker {
   id: string;
@@ -86,7 +86,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
         preferred_name: employee.preferred_name || '',
         job_level: employee.job_level,
         gender: employee.gender ?? undefined,
-        birthday: employee.birthday ? new Date(`${employee.birthday}T00:00:00`) : undefined,
+        birthday: employee.birthday ? parseDate(employee.birthday) : undefined,
         preferred_hours_per_week: employee.preferred_hours_per_week ?? null,
         inactive: employee.inactive !== true,
       });
@@ -105,7 +105,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
         preferred_name: data.preferred_name || null,
         job_level: data.job_level,
         gender: data.gender,
-        birthday: data.birthday ? format(data.birthday, 'yyyy-MM-dd') : null,
+        birthday: data.birthday ? data.birthday.toString() : null,
         preferred_hours_per_week: data.preferred_hours_per_week ?? null,
         inactive: data.inactive ? null : true,
       };
@@ -179,206 +179,210 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
       isDismissable={true}
     >
       <ModalOverlay className="fixed inset-0 z-50 bg-black/80 data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0" />
-      <Dialog className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-6 shadow-lg data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:slide-in-from-bottom-4 data-[entering]:zoom-in-95 data-[exiting]:slide-out-to-bottom-4 data-[exiting]:zoom-out-95">
-        <Heading className="text-xl font-manrope font-semibold mb-4">Edit Personal Information</Heading>
-        {error && <p className="text-sm text-errorred text-center mb-4">Error: {error}</p>}
+      <Dialog className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-0 border-[1.5px] border-verylightbeige shadow-lg data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:slide-in-from-bottom-4 data-[entering]:zoom-in-95 data-[exiting]:slide-out-to-bottom-4 data-[exiting]:zoom-out-95 overflow-hidden">
+        <div className="custom-scrollbar max-h-[380px] p-8 2xl:p-6 xl:max-h-[600px] 2xl:max-h-full overflow-y-auto">
+          <Heading
+            className="text-lg 2xl:text-xl font-manrope font-medium mb-4">Edit Personal Information
+          </Heading>
+          {error && <p className="text-sm text-errorred text-center mb-4">Error: {error}</p>}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="first_name">First Name</Label>
-              <Input id="first_name" {...register('first_name')} className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.first_name ? 'border-errorred' : '')} />
-              {errors.first_name && <p className="text-sm text-errorred">{errors.first_name.message}</p>}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="last_name">Last Name</Label>
-              <Input id="last_name" {...register('last_name')} className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none bg-white shadow-none", errors.last_name ? 'border-errorred' : '')} />
-              {errors.last_name && <p className="text-sm text-errorred">{errors.last_name.message}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="preferred_name">Preferred Name</Label>
-              <Input
-                id="preferred_name" {...register('preferred_name')}
-                className="border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none"
-                placeholder="optional" />
-            </div>
-
-
-            <div className="space-y-2">
-              <Label htmlFor="gender">Gender</Label>
-              <Controller
-                name="gender"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    key={field.value}
-                    onValueChange={field.onChange}
-                    value={field.value ?? ''}
-                  >
-                    <SelectTrigger className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
-                      {GENDERS.map((gender) => (
-                        <SelectItem key={gender} value={gender} className="hover:bg-accent/50">
-                          {gender.charAt(0).toUpperCase() + gender.slice(1).replace('_', ' ')}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="birthday">Birthday</Label>
-              <Controller
-                name="birthday"
-                control={control}
-                render={({ field }) => (
-                  <DatePicker
-                    granularity="day"
-                    value={field.value ? fromDate(field.value, getLocalTimeZone()) : null}
-                    onChange={(date) => field.onChange(date ? new Date(date.year, date.month - 1, date.day) : undefined)}
-                    className="*:not-first:mt-2"
-                  >
-                    <div className="flex">
-                      <Group className="w-full">
-                        <DateInput className="pe-9 !bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none hover:ring-1 hover:ring-roseblush" />
-                      </Group>
-                      <ButtonRAC type="button" className="text-muted-foreground/80 hover:text-muted-foreground data-focus-visible:border-ring data-focus-visible:ring-ring/50 z-10 -ms-9 -me-px flex w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none data-focus-visible:ring-[3px]">
-                        <CalendarIcon size={16} />
-                      </ButtonRAC>
-                    </div>
-                    <Modal>
-                      <Popover
-                        className="!bg-white text-popover-foreground data-entering:animate-in data-exiting:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0 data-[entering]:zoom-in-95 data-[exiting]:zoom-out-95 data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 z-[60] rounded-lg border shadow-lg outline-hidden"
-                        offset={4}
-                      >
-                        <Dialog className="max-h-[inherit] overflow-auto p-2">
-                          <Calendar />
-                        </Dialog>
-                      </Popover>
-                    </Modal>
-                  </DatePicker>
-                )}
-              />
-              {errors.birthday && <p className="text-sm text-errorred">{errors.birthday.message}</p>}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="job_level">Job Level</Label>
-              <Controller
-                name="job_level"
-                control={control}
-                render={({ field }) => (
-                  <Select
-                    key={field.value}
-                    onValueChange={field.onChange}
-                    value={field.value ?? ''}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a job level" className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal" />
-                    </SelectTrigger>
-                    <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
-                      {JOB_LEVELS.map((level) => (
-                        <SelectItem key={level} value={level} className="hover:bg-accent/50">
-                          {level}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {errors.job_level && <p className="text-sm text-errorred">{errors.job_level.message}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="preferred_hours_per_week">Preferred hours per week</Label>
-              <Input
-                id="preferred_hours_per_week"
-                placeholder="optional"
-                type="number"
-                min="0"
-                max="40"
-                {...register('preferred_hours_per_week')}
-                className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none !bg-white placeholder:text-muted-foreground/80 shadow-none", errors.preferred_hours_per_week ? 'border-errorred' : '', 'bg-background')}
-              />
-              {errors.preferred_hours_per_week && (
-                <p className="text-sm text-errorred">{errors.preferred_hours_per_week.message}</p>
-              )}
-            </div>
-          </div>
-
-
-          <Controller
-            name="inactive"
-            control={control}
-            render={({ field }) => (
-              <div className="flex items-end justify-between pt-4">
-                <div className="space-y-1">
-                  <Label className="font-medium">
-                    Worker Status
-                  </Label>
-                  <p className="text-xs text-muted-foreground">
-                    Inactive workers are excluded from scheduling.
-                  </p>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="active_status"
-                    checked={field.value}
-                    onCheckedChange={field.onChange}
-                  />
-                  <Label htmlFor="active_status" className="w-12 text-xs">
-                    {field.value ? 'Active' : 'Inactive'}
-                  </Label>
-                </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="first_name">First Name</Label>
+                <Input id="first_name" {...register('first_name')} className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.first_name ? 'border-errorred' : '')} />
+                {errors.first_name && <p className="text-sm text-errorred">{errors.first_name.message}</p>}
               </div>
-            )}
-          />
-
-
-          <div className="flex justify-between items-center pt-6 mt-6">
-            <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={loading}>
-              Delete Employee
-            </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading} className='bg-deeproseblush hover:bg-deeproseblush/80'>
-                {loading ? 'Saving...' : 'Save Changes'}
-              </Button>
+              <div className="space-y-2">
+                <Label htmlFor="last_name">Last Name</Label>
+                <Input id="last_name" {...register('last_name')} className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none bg-white shadow-none", errors.last_name ? 'border-errorred' : '')} />
+                {errors.last_name && <p className="text-sm text-errorred">{errors.last_name.message}</p>}
+              </div>
             </div>
-          </div>
 
-          <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Are you sure you want to delete {employee.first_name} {employee.last_name}? This action cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={loading}>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="preferred_name">Preferred Name</Label>
+                <Input
+                  id="preferred_name" {...register('preferred_name')}
+                  className="border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none"
+                  placeholder="optional" />
+              </div>
+
+
+              <div className="space-y-2">
+                <Label htmlFor="gender">Gender</Label>
+                <Controller
+                  name="gender"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      key={field.value}
+                      onValueChange={field.onChange}
+                      value={field.value ?? ''}
+                    >
+                      <SelectTrigger className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
+                        {GENDERS.map((gender) => (
+                          <SelectItem key={gender} value={gender} className="hover:bg-accent/50">
+                            {gender.charAt(0).toUpperCase() + gender.slice(1).replace('_', ' ')}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="birthday">Birthday</Label>
+                <Controller
+                  name="birthday"
+                  control={control}
+                  render={({ field }) => (
+                    <DatePicker
+                      granularity="day"
+                      value={field.value ?? null}
+                      onChange={field.onChange}
+                      className="*:not-first:mt-2"
+                    >
+                      <div className="flex">
+                        <Group className="w-full">
+                          <DateInput className="pe-9 !bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none hover:ring-1 hover:ring-roseblush" />
+                        </Group>
+                        <ButtonRAC type="button" className="text-muted-foreground/80 hover:text-muted-foreground data-focus-visible:border-ring data-focus-visible:ring-ring/50 z-10 -ms-9 -me-px flex w-9 items-center justify-center rounded-e-md transition-[color,box-shadow] outline-none data-focus-visible:ring-[3px]">
+                          <CalendarIcon size={16} />
+                        </ButtonRAC>
+                      </div>
+                      <Modal>
+                        <Popover
+                          className="!bg-white text-popover-foreground data-entering:animate-in data-exiting:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0 data-[entering]:zoom-in-95 data-[exiting]:zoom-out-95 data-[placement=bottom]:slide-in-from-top-2 data-[placement=left]:slide-in-from-right-2 data-[placement=right]:slide-in-from-left-2 data-[placement=top]:slide-in-from-bottom-2 z-[60] rounded-lg border shadow-lg outline-hidden"
+                          offset={4}
+                        >
+                          <Dialog className="max-h-[inherit] overflow-auto p-2">
+                            <Calendar />
+                          </Dialog>
+                        </Popover>
+                      </Modal>
+                    </DatePicker>
+                  )}
+                />
+                {errors.birthday && <p className="text-sm text-errorred">{errors.birthday.message}</p>}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="job_level">Job Level</Label>
+                <Controller
+                  name="job_level"
+                  control={control}
+                  render={({ field }) => (
+                    <Select
+                      key={field.value}
+                      onValueChange={field.onChange}
+                      value={field.value ?? ''}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a job level" className="data-[placeholder]:text-muted-foreground/80 shadow-none text-sm font-normal" />
+                      </SelectTrigger>
+                      <SelectContent onCloseAutoFocus={(e) => e.preventDefault()} className="text-sm">
+                        {JOB_LEVELS.map((level) => (
+                          <SelectItem key={level} value={level} className="hover:bg-accent/50">
+                            {level}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
+                {errors.job_level && <p className="text-sm text-errorred">{errors.job_level.message}</p>}
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="preferred_hours_per_week">Preferred hours per week</Label>
+                <Input
+                  id="preferred_hours_per_week"
+                  placeholder="optional"
+                  type="number"
+                  min="0"
+                  max="40"
+                  {...register('preferred_hours_per_week')}
+                  className={cn("border border-input focus-visible:ring-1 focus-visible:ring-offset-0 transition-none !bg-white placeholder:text-muted-foreground/80 shadow-none", errors.preferred_hours_per_week ? 'border-errorred' : '', 'bg-background')}
+                />
+                {errors.preferred_hours_per_week && (
+                  <p className="text-sm text-errorred">{errors.preferred_hours_per_week.message}</p>
+                )}
+              </div>
+            </div>
+
+
+            <Controller
+              name="inactive"
+              control={control}
+              render={({ field }) => (
+                <div className="flex items-end justify-between pt-4">
+                  <div className="space-y-1">
+                    <Label className="font-medium">
+                      Worker Status
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Inactive workers are excluded from scheduling.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="active_status"
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <Label htmlFor="active_status" className="w-12 text-xs">
+                      {field.value ? 'Active' : 'Inactive'}
+                    </Label>
+                  </div>
+                </div>
+              )}
+            />
+
+
+            <div className="flex justify-between items-center pt-6 mt-6">
+              <Button type="button" variant="destructive" onClick={handleDeleteClick} disabled={loading}>
+                Delete Employee
+              </Button>
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={handleClose} disabled={loading}>
                   Cancel
                 </Button>
-                <Button variant="destructive" onClick={handleDeleteConfirm} disabled={loading}>
-                  {loading ? 'Deleting...' : 'Yes, delete employee'}
+                <Button type="submit" disabled={loading} className='bg-deeproseblush hover:bg-deeproseblush/80'>
+                  {loading ? 'Saving...' : 'Save Changes'}
                 </Button>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+              </div>
+            </div>
 
-        </form>
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Employee</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {employee.first_name} {employee.last_name}? This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={loading}>
+                    Cancel
+                  </Button>
+                  <Button variant="destructive" onClick={handleDeleteConfirm} disabled={loading}>
+                    {loading ? 'Deleting...' : 'Yes, delete employee'}
+                  </Button>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+          </form>
+        </div>
       </Dialog>
     </Modal>
   );

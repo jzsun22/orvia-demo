@@ -1,6 +1,10 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
+const SESSION_TIMEOUT_IN_MINUTES = 30;
+const SESSION_TIMEOUT_MS = SESSION_TIMEOUT_IN_MINUTES * 60 * 1000;
+const LAST_ACTIVITY_COOKIE = 'last-activity';
+
 export async function middleware(req: NextRequest) {
   let response = NextResponse.next({
     request: {
@@ -17,45 +21,81 @@ export async function middleware(req: NextRequest) {
           return req.cookies.get(name)?.value;
         },
         set(name: string, value: string, options: CookieOptions) {
-          // The cookie is set on the response so the browser knows about the session.
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
+          response.cookies.set({ name, value, ...options });
         },
         remove(name: string, options: CookieOptions) {
-          // The cookie is removed from the response.
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
+          response.cookies.set({ name, value: '', ...options });
         },
       },
     }
   );
 
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // This logic is restored from your original middleware
-  const isAuthenticated = !!user && !userError;
+  const isAuthenticated = !!user;
   const isAuthRoute = req.nextUrl.pathname.startsWith('/login');
 
+  // 1. Handle redirects for unauthenticated users trying to access protected routes
   if (!isAuthenticated && !isAuthRoute) {
     let from = req.nextUrl.pathname;
     if (req.nextUrl.search) {
       from += req.nextUrl.search;
     }
-    // Use the main response object for redirection
-    response = NextResponse.redirect(new URL(`/login?from=${encodeURIComponent(from)}`, req.url));
+    const redirectUrl = new URL(`/login?from=${encodeURIComponent(from)}`, req.url);
+    const redirectResponse = NextResponse.redirect(redirectUrl);
+    // Ensure last-activity cookie is cleared on redirect
+    redirectResponse.cookies.set({
+      name: LAST_ACTIVITY_COOKIE,
+      value: '',
+      path: '/',
+      expires: new Date(0),
+    });
+    return redirectResponse;
   }
 
+  // 2. Handle redirects for authenticated users trying to access auth routes
   if (isAuthenticated && (isAuthRoute || req.nextUrl.pathname === '/')) {
-    // Use the main response object for redirection
-    response = NextResponse.redirect(new URL('/dashboard', req.url));
+    const redirectResponse = NextResponse.redirect(new URL('/dashboard', req.url));
+    // Set activity cookie on redirect to ensure session starts immediately
+    redirectResponse.cookies.set(LAST_ACTIVITY_COOKIE, Date.now().toString(), {
+      path: '/',
+      httpOnly: true,
+      maxAge: SESSION_TIMEOUT_MS / 1000,
+    });
+    return redirectResponse;
   }
 
+  // 3. Handle session timeout for authenticated users on protected routes
+  if (isAuthenticated) {
+    const lastActivity = req.cookies.get(LAST_ACTIVITY_COOKIE)?.value;
+    const now = Date.now();
+
+    if (lastActivity && now - parseInt(lastActivity, 10) > SESSION_TIMEOUT_MS) {
+      await supabase.auth.signOut();
+      const redirectResponse = NextResponse.redirect(
+        new URL('/login?reason=session-expired', req.url)
+      );
+      // Clear the cookie on the timeout redirect
+      redirectResponse.cookies.set({
+        name: LAST_ACTIVITY_COOKIE,
+        value: '',
+        path: '/',
+        expires: new Date(0),
+      });
+      return redirectResponse;
+    }
+
+    // If active, update the session cookie on the ongoing response
+    response.cookies.set(LAST_ACTIVITY_COOKIE, now.toString(), {
+      path: '/',
+      httpOnly: true,
+      maxAge: SESSION_TIMEOUT_MS / 1000,
+    });
+  }
+
+  // 4. Return the original response (with updated cookie if user is active)
   return response;
 }
 
