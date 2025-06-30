@@ -238,7 +238,7 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
         if (locationsError) throw locationsError;
       }
 
-      showSuccessToast(`Employee ${data.first_name} ${data.last_name} added successfully.`);
+      showSuccessToast(`Welcome aboard! Employee added successfully.`);
       onSuccess();
       handleClose();
     } catch (err: any) {

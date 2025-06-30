@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -90,6 +90,9 @@ export function RecurringShiftModal({
   const [endTime, setEndTime] = useState<string>('');
   const [assignmentType, setAssignmentType] = useState<'lead' | 'regular' | 'training'>('regular');
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [employeeFirstName, setEmployeeFirstName] = useState<string>('');
+
+  const isInitialLoad = useRef(true);
 
   // Reset all form state when modal closes
   useEffect(() => {
@@ -104,6 +107,8 @@ export function RecurringShiftModal({
       setFilteredPositions([]);
       setFilteredShiftTemplates([]);
       setError(null);
+      setEmployeeFirstName('');
+      isInitialLoad.current = true;
     }
   }, [isOpen]);
 
@@ -116,6 +121,7 @@ export function RecurringShiftModal({
       setStartTime(shift.start_time);
       setEndTime(shift.end_time);
       setAssignmentType(shift.assignment_type);
+      isInitialLoad.current = true;
     }
   }, [isEditing, shift]);
 
@@ -129,6 +135,19 @@ export function RecurringShiftModal({
 
     const loadInitialData = async () => {
       try {
+        // Fetch worker's first name for toast message
+        const { data: workerData, error: workerError } = await supabase
+          .from('workers')
+          .select('first_name')
+          .eq('id', employeeId)
+          .single();
+
+        if (workerError) {
+          console.error("Could not fetch employee's first name for toast.", workerError);
+        } else if (workerData) {
+          setEmployeeFirstName(workerData.first_name ?? '');
+        }
+        
         // Fetch worker-specific locations
         const { data: workerLocationsData, error: workerLocationsError } = await supabase
           .from('worker_locations')
@@ -207,13 +226,18 @@ export function RecurringShiftModal({
       if (template) {
         setEndTime(template.end_time);
         setSelectedTemplateId(template.id);
-        setAssignmentType(template.lead_type ? 'lead' : 'regular');
+        if (!isInitialLoad.current) {
+          setAssignmentType(template.lead_type ? 'lead' : 'regular');
+        }
       }
     } else {
       setEndTime('');
       setSelectedTemplateId('');
     }
-  }, [startTime, filteredShiftTemplates]);
+    if (isInitialLoad.current && (isEditing || startTime)) {
+      isInitialLoad.current = false;
+    }
+  }, [startTime, filteredShiftTemplates, isEditing]);
 
   const fetchPositionsForLocation = useCallback(async (locationId: string) => {
     try {
@@ -377,9 +401,9 @@ export function RecurringShiftModal({
         throw new Error('Failed to save shift or get ID back.');
       }
 
-      const successMessage = isEditing
-        ? "Recurring shift updated successfully."
-        : "Recurring shift added successfully.";
+      const actionText = isEditing ? 'updated' : 'added';
+      const namePart = employeeFirstName ? `for ${employeeFirstName} ` : '';
+      const successMessage = `Recurring shift ${namePart}has been ${actionText}.`;
       showSuccessToast(successMessage);
 
       // Construct the RecurringShift object for the onSuccess callback
@@ -425,16 +449,25 @@ export function RecurringShiftModal({
     return Array.from(startTimeSet).sort();
   };
 
-  const getUniqueEndTimesForStartTime = (selectedStartTime: string): string[] => {
+  const getUniqueEndTimesForStartTime = (selectedStartTime: string): { time: string; templateId: string | undefined }[] => {
     if (!selectedStartTime) {
       return [];
     }
-    const endTimeSet = new Set(
-      filteredShiftTemplates
-        .filter(template => template.start_time === selectedStartTime)
-        .map(template => template.end_time)
-    );
-    return Array.from(endTimeSet).sort();
+    const templatesForStartTime = filteredShiftTemplates
+      .filter(template => template.start_time === selectedStartTime);
+
+    const endTimeMap = new Map<string, string>();
+    templatesForStartTime.forEach(t => {
+      // If there are multiple templates with same start/end time, we just pick one id.
+      // This can be improved if we need to distinguish between them.
+      if (!endTimeMap.has(t.end_time)) {
+        endTimeMap.set(t.end_time, t.id);
+      }
+    });
+
+    return Array.from(endTimeMap.entries())
+      .map(([time, templateId]) => ({ time, templateId }))
+      .sort((a, b) => a.time.localeCompare(b.time));
   };
 
   return (
@@ -542,13 +575,18 @@ export function RecurringShiftModal({
                   <div className="space-y-2">
                     <Label className="text-xs 2xl:text-sm">End Time</Label>
                     <Select
-                      value={selectedTemplateId}
-                      onValueChange={(templateId) => {
-                        const template = filteredShiftTemplates.find(t => t.id === templateId);
-                        if (template) {
-                          setSelectedTemplateId(template.id);
-                          setEndTime(template.end_time);
-                          setAssignmentType(template.lead_type ? 'lead' : 'regular');
+                      value={endTime}
+                      onValueChange={(timeValue) => {
+                        if (!timeValue) return;
+
+                        const selectedTemplate = filteredShiftTemplates.find(
+                          t => t.start_time === startTime && t.end_time === timeValue
+                        );
+
+                        if (selectedTemplate) {
+                          setSelectedTemplateId(selectedTemplate.id);
+                          setEndTime(selectedTemplate.end_time);
+                          setAssignmentType(selectedTemplate.lead_type ? 'lead' : 'regular');
                         }
                       }}
                       disabled={!startTime}
@@ -559,9 +597,9 @@ export function RecurringShiftModal({
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
-                        {getUniqueEndTimesForStartTime(startTime).map((time, index) => (
-                          <SelectItem key={index} value={time}>
-                            {formatTime12hr(time)}
+                        {getUniqueEndTimesForStartTime(startTime).map((item, index) => (
+                          <SelectItem key={index} value={item.time}>
+                            {formatTime12hr(item.time)}
                           </SelectItem>
                         ))}
                       </SelectContent>

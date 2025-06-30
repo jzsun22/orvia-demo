@@ -12,7 +12,7 @@ export function useAppToast() {
       // title: "Success", 
       description: message,
       duration: duration,
-      // className: "bg-green-500 text-white" // Example for custom styling, can be adapted later
+      className: "bg-pistachiomist text-charcoalcocoa"
     });
   };
 

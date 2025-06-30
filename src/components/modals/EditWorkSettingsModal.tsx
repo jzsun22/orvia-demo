@@ -143,7 +143,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
         await supabase.from('worker_positions').delete().eq('worker_id', employee.id).in('position_id', positionsToRemove);
       }
 
-      showSuccessToast(`Work settings for ${employee.first_name} updated.`);
+      showSuccessToast(`${employee.first_name}'s location and/or position updated.`);
       onSuccess();
       handleClose();
     } catch (err: any) {

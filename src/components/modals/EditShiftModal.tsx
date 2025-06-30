@@ -809,9 +809,12 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         throw new Error(errorData.error || `Failed to save changes: ${response.statusText}`);
       }
       // Determine the correct success message
-      const successMessage = isNewShift
-        ? "New shift assigned successfully."
-        : "Shift updated successfully.";
+      const actionText = isNewShift ? "assigned" : "updated";
+      const positionForToast = isPrepBaristaShift ? "Prep / Barista" : capitalizeWords(shiftDetails.position?.name);
+      const locationForToast = formatLocationName(shiftDetails.location?.name);
+      const timeForToast = `${formatTime12hr(shiftDetails.scheduledShift.start_time)} - ${formatTime12hr(pairedShiftInfo ? pairedShiftInfo.partnerShiftEndTime : shiftDetails.scheduledShift.end_time)}`;
+      const successMessage = `Shift ${actionText}: ${positionForToast} at ${locationForToast} (${timeForToast}).`;
+      
       showSuccessToast(successMessage); // Show success toast
       onShiftUpdated();
       handleClose();
