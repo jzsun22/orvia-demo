@@ -28,6 +28,25 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
+import { toZonedTime } from "date-fns-tz";
+
+const CheckmarkIcon = (props: React.ComponentProps<'svg'>) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...props}
+  >
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+);
 
 const PT_TIMEZONE = 'America/Los_Angeles';
 
@@ -61,7 +80,7 @@ function getWeekStartPT(referenceDate: Date): Date {
     weekday: 'short',
   });
   const dayMapPT: { [key: string]: number } = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  const dayOfWeekInPT = dayMapPT[dayOfWeekStrPT] !== undefined ? dayMapPT[dayOfWeekStrPT] : new Date().getDay();
+  const dayOfWeekInPT = dayMapPT[dayOfWeekStrPT] !== undefined ? dayMapPT[dayOfWeekStrPT] : noonOnRefDayPT.getUTCDay();
   const daysToSubtract = (dayOfWeekInPT - 1 + 7) % 7;
   const mondayAtNoonPT = new Date(noonOnRefDayPT.getTime());
   mondayAtNoonPT.setUTCDate(mondayAtNoonPT.getUTCDate() - daysToSubtract);
@@ -104,14 +123,13 @@ const SchedulePage = () => {
   const { showSuccessToast } = useAppToast();
   const locationSlug = params?.location as string;
 
-  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartPT(new Date()));
+  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE)));
   const [editMode, setEditMode] = useState(false);
   const [selectedShiftModalContext, setSelectedShiftModalContext] = useState<ShiftClickContext | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPastWeek, setIsPastWeek] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showOverwriteDialog, setShowOverwriteDialog] = useState(false);
-  const [pendingGenerate, setPendingGenerate] = useState(false);
 
   const { data, error, isLoading, mutate } = useSchedulePageData(locationSlug, weekStart);
 
@@ -145,7 +163,7 @@ const SchedulePage = () => {
         newUrlWeekParam = weekParam;
       }
     } else {
-      derivedMondayFromUrl = getWeekStartPT(new Date());
+      derivedMondayFromUrl = getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE));
       needsUrlUpdate = true;
       newUrlWeekParam = ptDateFormatter.format(derivedMondayFromUrl);
     }
@@ -160,7 +178,7 @@ const SchedulePage = () => {
   }, [searchParams, locationSlug, router, weekStart]);
 
   useEffect(() => {
-    const currentWeekMondayPT = getWeekStartPT(new Date());
+    const currentWeekMondayPT = getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE));
     setIsPastWeek(weekStart.getTime() < currentWeekMondayPT.getTime());
   }, [weekStart]);
 

@@ -26,7 +26,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { APP_TIMEZONE } from '@/lib/scheduling/time-utils';
+import { APP_TIMEZONE, parseTime } from '@/lib/scheduling/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 
 // Define the availability type to match the backend structure
@@ -136,11 +136,9 @@ const capitalizeDay = (day: string): string => {
 const formatTime12hr = (timeStr: string | undefined | null): string => {
   if (!timeStr) return '';
   try {
-    // We need a full date to format with timezone, so we create one from today
-    // The date part is arbitrary; we only care about the time in PT.
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes);
+    // We need a full date to format with timezone. parseTime creates one for today
+    // in the correct APP_TIMEZONE.
+    const date = parseTime(timeStr);
     
     // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
     return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a').toUpperCase();
@@ -446,7 +444,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
 
       if (updateError) throw updateError;
 
-      showSuccessToast(`Availability for ${employee.first_name} ${employee.last_name} updated.`);
+      showSuccessToast(`${employee.first_name} ${employee.last_name}'s availability updated.`);
       onSuccess();
       handleClose();
     } catch (err: any) {

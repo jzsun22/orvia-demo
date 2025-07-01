@@ -15,7 +15,7 @@ import { Location } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { formatLocationName } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { APP_TIMEZONE } from '@/lib/scheduling/time-utils';
+import { APP_TIMEZONE, parseTime } from '@/lib/scheduling/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 
 interface RecurringShift {
@@ -46,11 +46,9 @@ const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 const formatTime12hr = (timeStr: string | undefined | null): string => {
   if (!timeStr) return '';
   try {
-    // We need a full date to format with timezone, so we create one from today
-    // The date part is arbitrary; we only care about the time in PT.
-    const [hours, minutes] = timeStr.split(':').map(Number);
-    const date = new Date();
-    date.setHours(hours, minutes);
+    // We need a full date to format with timezone. parseTime creates one for today
+    // in the correct APP_TIMEZONE.
+    const date = parseTime(timeStr);
     
     // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
     return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a').toUpperCase();
@@ -251,21 +249,6 @@ export function RecurringShiftModal({
       setFilteredPositions([]);
     }
   }, [locationId, fetchPositionsForLocation]);
-
-  const fetchAllShiftTemplates = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('shift_templates')
-        .select('id, start_time, end_time')
-        .order('start_time');
-
-      if (error) throw error;
-      setAllShiftTemplates(data || []);
-    } catch (err: any) {
-      console.error('Error fetching shift templates:', err);
-      setError(err.message);
-    }
-  };
 
   const fetchShiftTemplatesForLocationAndPosition = async (locationId: string, positionId: string) => {
     try {
