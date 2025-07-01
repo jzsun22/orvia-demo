@@ -15,7 +15,8 @@ import { Location } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { formatLocationName } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { APP_TIMEZONE, parseTime } from '@/lib/scheduling/time-utils';
+import { APP_TIMEZONE } from '@/lib/time';
+import { formatTime12hrWithMinutes } from '@/lib/time';
 import { formatInTimeZone } from 'date-fns-tz';
 
 interface RecurringShift {
@@ -41,22 +42,6 @@ interface RecurringShiftModalProps {
 }
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
-// Use timezone-aware formatter
-const formatTime12hr = (timeStr: string | undefined | null): string => {
-  if (!timeStr) return '';
-  try {
-    // We need a full date to format with timezone. parseTime creates one for today
-    // in the correct APP_TIMEZONE.
-    const date = parseTime(timeStr);
-    
-    // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
-    return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a').toUpperCase();
-  } catch (error) {
-    console.warn(`Error formatting time ${timeStr}:`, error);
-    return timeStr; // Fallback to original string if parsing/formatting fails
-  }
-};
 
 // Add this utility function at the top with other constants
 const capitalizeDay = (day: string) => {
@@ -565,7 +550,7 @@ export function RecurringShiftModal({
                       <SelectContent>
                         {getUniqueStartTimes().map((time, index) => (
                           <SelectItem key={index} value={time}>
-                            {formatTime12hr(time)}
+                            {formatTime12hrWithMinutes(time)}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -593,13 +578,13 @@ export function RecurringShiftModal({
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select end time">
-                          {endTime ? formatTime12hr(endTime) : 'Select end time'}
+                          {endTime ? formatTime12hrWithMinutes(endTime) : 'Select end time'}
                         </SelectValue>
                       </SelectTrigger>
                       <SelectContent>
                         {getUniqueEndTimesForStartTime(startTime).map((item, index) => (
                           <SelectItem key={index} value={item.time}>
-                            {formatTime12hr(item.time)}
+                            {formatTime12hrWithMinutes(item.time)}
                           </SelectItem>
                         ))}
                       </SelectContent>

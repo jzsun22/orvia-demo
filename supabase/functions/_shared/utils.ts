@@ -178,11 +178,23 @@ function timeToMinutes(timeStr: string): number {
 }
 
 // Helper to get lowercase day name (e.g., "monday") from a YYYY-MM-DD date string
-export async function getDayOfWeekName(dateString: string): Promise<DayOfWeek> {
-  const date = new Date(dateString + 'T00:00:00'); // Ensure parsing as local, add dummy time
-  const dayIndex = date.getDay();
-  const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  return days[dayIndex];
+export function getDayOfWeekName(dateString: string): DayOfWeek {
+  // dateString is "YYYY-MM-DD". We need to find the day of the week in Pacific Time.
+  // We can construct a Date object that is unambiguously within that day in PT.
+  // Let's take noon on that day to avoid DST crossover issues at midnight.
+  // The 'Z' is important to make it UTC, so it's a fixed point in time.
+  const utcDate = new Date(`${dateString}T12:00:00Z`);
+
+  // Now format this UTC date into a weekday string using the Pacific timezone.
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long', // 'long' gives 'Monday', 'short' gives 'Mon', 'narrow' gives 'M'
+    timeZone: 'America/Los_Angeles',
+  });
+
+  const dayName = formatter.format(utcDate).toLowerCase();
+  
+  // The function is expected to return DayOfWeek type, which is lowercase.
+  return dayName as DayOfWeek;
 }
 
 /**
@@ -246,7 +258,7 @@ export async function isWorkerEligibleForAssignment(
     }
 
     // 5. Check Availability (uses worker.availability from pre-fetched data)
-    const dayOfWeek = await getDayOfWeekName(shiftDate);
+    const dayOfWeek = getDayOfWeekName(shiftDate);
     const workerAvailability = worker.availability as WorkerAvailabilityType | undefined;
 
     // Use effectiveShiftStartTime and effectiveShiftEndTime for availability check

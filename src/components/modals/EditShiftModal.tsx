@@ -25,10 +25,10 @@ import type { ShiftClickContext } from '@/components/scheduling/ScheduleGrid'
 import { supabase } from '@/lib/supabase/client'
 import { Input } from '@/components/ui/input'
 import { useAppToast } from "@/lib/toast-service";
-import { APP_TIMEZONE, parseTime as parseAppTime } from '@/lib/scheduling/time-utils';
 import { formatInTimeZone } from 'date-fns-tz';
 import { capitalizeWords, formatLocationName } from '@/lib/utils';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { APP_TIMEZONE, formatTime12hr } from '@/lib/time';
 
 
 const PREP_BARISTA_POSITION_ID = process.env.NEXT_PUBLIC_PREP_BARISTA_POSITION_ID;
@@ -47,20 +47,6 @@ interface NewShiftClientContext {
   shiftDate: string;    // YYYY-MM-DD
   startTime: string;    // HH:MM
   endTime: string;      // HH:MM
-}
-
-// Helper function to format time to 12-hour AM/PM
-// Uses timezone-aware utilities for consistency
-function formatTime12hr(timeStr: string | undefined | null): string {
-  if (!timeStr) return '';
-  try {
-    const dateObj = parseAppTime(timeStr); // Parses "HH:mm" string into today's date at that time in APP_TIMEZONE
-    // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
-    return formatInTimeZone(dateObj, APP_TIMEZONE, 'h:mmaa').toUpperCase();
-  } catch (error) {
-    console.warn(`Error formatting time ${timeStr}:`, error);
-    return timeStr; // Fallback to original string if parsing/formatting fails
-  }
 }
 
 interface EditShiftModalProps {
@@ -670,8 +656,8 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
   const dialogDescriptionDate = shiftDateStr
     ? formatInTimeZone(shiftDateStr, APP_TIMEZONE, 'M/d/yyyy') // Correctly format date in APP_TIMEZONE
     : "";
-  const formattedStartTime = formatTime12hr(shiftDetails?.scheduledShift?.start_time);
-  const formattedEndTime = formatTime12hr(pairedShiftInfo ? pairedShiftInfo.partnerShiftEndTime : shiftDetails?.scheduledShift?.end_time);
+  const formattedStartTime = formatTime12hr(shiftDetails?.scheduledShift?.start_time || '');
+  const formattedEndTime = formatTime12hr((pairedShiftInfo ? pairedShiftInfo.partnerShiftEndTime : shiftDetails?.scheduledShift?.end_time) || '');
   const dialogDescriptionTime = shiftDetails?.scheduledShift ? `${formattedStartTime} - ${formattedEndTime}` : "";
   const dialogLocationName = capitalizeWords(shiftDetails?.location?.name) || (shiftContext?.type === 'new' ? `Location ID: ${shiftContext.locationId}` : "");
   const dialogTemplateName = shiftDetails?.shiftTemplate?.id
@@ -692,36 +678,51 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     setError(null);
     setTimeValidationErrors({}); // Clear previous errors before new save attempt
 
-    // Perform final validation before saving (only if not Prep Barista, as times are fixed for them)
-    let finalValidationOk = true;
-    if (!isPrepBaristaShift) {
-      const currentValidationErrors: typeof timeValidationErrors = {};
-      draftAssignments.forEach(assignment => {
-        if (assignment.assigned_start || assignment.assigned_end) { // Only validate if custom times are set
-          const assignmentCategory = assignment.assignment_type === primaryAssignmentType ? 'primary' : 'training';
+    // Time validation logic
+    const primaryAssignment = draftAssignments.find(a => a.assignment_type === 'lead' || a.assignment_type === 'regular');
+    const trainingAssignment = draftAssignments.find(a => a.assignment_type === 'training');
 
-          if (assignment.assigned_start) {
-            const startError = validateAssignmentTime(assignment.assignment_type, 'assigned_start', assignment.assigned_start, draftAssignments);
-            if (startError) {
-              finalValidationOk = false;
-              currentValidationErrors[`${assignmentCategory}_start`] = startError;
-            }
-          }
-          if (assignment.assigned_end) {
-            const endError = validateAssignmentTime(assignment.assignment_type, 'assigned_end', assignment.assigned_end, draftAssignments);
-            if (endError) {
-              finalValidationOk = false;
-              currentValidationErrors[`${assignmentCategory}_end`] = endError;
-            }
-          }
-        }
-      });
-      if (!finalValidationOk) {
-        setTimeValidationErrors(currentValidationErrors);
-        setError("Invalid custom times. Please correct the highlighted errors.");
-        setIsSaving(false);
-        return;
+    const newTimeValidationErrors: typeof timeValidationErrors = {};
+    let isValid = true;
+
+    if (primaryAssignment) {
+      const start = primaryAssignment.assigned_start;
+      const end = primaryAssignment.assigned_end;
+      if (!start || !/^\d{2}:\d{2}(:\d{2})?$/.test(start)) {
+        newTimeValidationErrors.primary_start = 'Invalid format (HH:mm)';
+        isValid = false;
       }
+      if (!end || !/^\d{2}:\d{2}(:\d{2})?$/.test(end)) {
+        newTimeValidationErrors.primary_end = 'Invalid format (HH:mm)';
+        isValid = false;
+      }
+      if (start && end && start >= end) {
+        newTimeValidationErrors.primary_end = 'End time must be after start';
+        isValid = false;
+      }
+    }
+    if (trainingAssignment) {
+        const start = trainingAssignment.assigned_start;
+        const end = trainingAssignment.assigned_end;
+        if (start && (!/^\d{2}:\d{2}(:\d{2})?$/.test(start))) {
+            newTimeValidationErrors.training_start = 'Invalid format (HH:mm)';
+            isValid = false;
+        }
+        if (end && (!/^\d{2}:\d{2}(:\d{2})?$/.test(end))) {
+            newTimeValidationErrors.training_end = 'Invalid format (HH:mm)';
+            isValid = false;
+        }
+        if (start && end && start >= end) {
+            newTimeValidationErrors.training_end = 'End time must be after start';
+            isValid = false;
+        }
+    }
+    
+    setTimeValidationErrors(newTimeValidationErrors);
+
+    if (!isValid) {
+      setError("Please fix the time errors before saving.");
+      return;
     }
 
     const scheduledShiftData = shiftDetails.scheduledShift;

@@ -42,22 +42,20 @@ export const birthdayFetcher = async (client: SupabaseClient) => {
   const birthdaysThisWeek = (allWorkers || [])
     .filter((worker: any) => {
       if (!worker.birthday) return false
-      const birthDate = parseISO(worker.birthday)
-      // Create a date for this year with the worker's birthday month/day
-      const thisYearBirthday = new Date(
-        today.getFullYear(),
-        birthDate.getMonth(),
-        birthDate.getDate()
-      )
+      // worker.birthday is a 'YYYY-MM-DD' string. We need to treat it as a calendar date, not a specific time.
+      const [year, month, day] = worker.birthday.split('-').map(Number);
+      
+      // Construct the birthday for the current year in Pacific Time.
+      const thisYearBirthdayStr = `${today.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const thisYearBirthday = toZonedTime(thisYearBirthdayStr, APP_TIMEZONE);
+      
       return thisYearBirthday >= weekStart && thisYearBirthday <= weekEnd
     })
     .map((worker: any) => {
-      const birthDate = parseISO(worker.birthday)
-      const thisYearBirthday = new Date(
-        today.getFullYear(),
-        birthDate.getMonth(),
-        birthDate.getDate()
-      )
+      const [year, month, day] = worker.birthday.split('-').map(Number);
+      const thisYearBirthdayStr = `${today.getFullYear()}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const thisYearBirthday = toZonedTime(thisYearBirthdayStr, APP_TIMEZONE);
+
       return {
         ...worker,
         birthdayThisYear: thisYearBirthday,

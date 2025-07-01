@@ -6,8 +6,7 @@ import {
     Worker
 } from '@/lib/types';
 import { ScheduleGenerationState } from './scheduleState';
-import { mapDayOfWeekToDate } from './utils';
-import { calculateShiftDurationHours } from './time-utils';
+import { mapDayOfWeekToDate, calculateShiftDurationHours } from './utils';
 import { v4 as uuidv4 } from 'uuid'; 
 
 /**

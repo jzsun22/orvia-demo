@@ -192,7 +192,7 @@ Deno.serve(async (req: Request) => {
     const potentialWorkerIds = potentialWorkers.map(w => w.id);
 
     // Fetch locationHours once before the loop
-    const dayOfWeekForShift = await getDayOfWeekName(scheduledShiftData.shift_date);
+    const dayOfWeekForShift = getDayOfWeekName(scheduledShiftData.shift_date);
     console.log(`[get-eligible-workers] Fetching location hours for location ${templateData.location_id} on ${dayOfWeekForShift}...`);
     // Fetch location hours using the helper (which now takes a client)
     const locationHours = await fetchLocationHoursForDay(supabaseClient, templateData.location_id, dayOfWeekForShift);

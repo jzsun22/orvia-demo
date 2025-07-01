@@ -11,9 +11,9 @@ import { ScheduleGenerationState } from './scheduleState';
 import { 
     checkWorkerShiftEligibility, 
     formatDateToYYYYMMDD, 
-    getDayOfWeekStringFromDate
+    getDayOfWeekStringFromDate,
+    calculateShiftDurationHours
 } from './utils';
-import { calculateShiftDurationHours } from './time-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -42,8 +42,8 @@ export function assignDynamicShifts(
     if (template.lead_type) {
         return { warnings };
     }
-    // Convert date to Date object and string
-    const shiftDate = typeof date === 'string' ? new Date(date) : date;
+    // Convert date to Date object and string, ensuring UTC parsing
+    const shiftDate = typeof date === 'string' ? new Date(`${date}T00:00:00Z`) : date;
     const dateStr = formatDateToYYYYMMDD(shiftDate);
     const dayOfWeek = getDayOfWeekStringFromDate(shiftDate);
     const locationHours = locationOperatingHoursMap.get(dayOfWeek);

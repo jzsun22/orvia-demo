@@ -12,7 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScreenSize } from '@/hooks/useScreenSize';
 import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
-import { APP_TIMEZONE } from '@/lib/scheduling/time-utils';
+import { APP_TIMEZONE } from '@/lib/time';
 
 interface LocationCardData {
   location_id: string;

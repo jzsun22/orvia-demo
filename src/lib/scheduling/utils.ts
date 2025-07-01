@@ -6,8 +6,32 @@ import {
     Worker, 
     ShiftTemplate
 } from '@/lib/types';
-import { parseTime, calculateShiftDurationHours } from './time-utils';
 import { ScheduleGenerationState } from './scheduleState';
+
+/**
+ * Calculates the duration between two time strings in hours.
+ * This is timezone-agnostic as it calculates duration on a fictional day.
+ * @param startTimeString Start time in "HH:mm" or "HH:mm:ss" format.
+ * @param endTimeString End time in "HH:mm" or "HH:mm:ss" format.
+ * @returns The duration in hours.
+ */
+export function calculateShiftDurationHours(startTimeString: string, endTimeString: string): number {
+    // Using a fixed date and UTC 'Z' avoids any timezone-related issues.
+    const start = new Date(`1970-01-01T${startTimeString}Z`);
+    const end = new Date(`1970-01-01T${endTimeString}Z`);
+    
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      throw new Error(`Invalid time string provided to calculateShiftDurationHours: ${startTimeString}, ${endTimeString}`);
+    }
+
+    if (end < start) {
+        console.warn(`End time ${endTimeString} is before start time ${startTimeString}. Assuming 0 duration.`);
+        return 0;
+    }
+
+    const durationMilliseconds = end.getTime() - start.getTime();
+    return durationMilliseconds / (1000 * 60 * 60);
+}
 
 /**
  * Calculates the date range for the week (Monday to Sunday) containing the given date.
@@ -110,31 +134,25 @@ export function isShiftWithinAvailability(
         return false;
     }
 
-    try {
-        const shiftStartTime = parseTime(shiftTimeRange.start_time);
-        const shiftEndTime = parseTime(shiftTimeRange.end_time);
-        const locationMorningCutoff = parseTime(locationHoursForDay.morning_cutoff);
+    const { start_time, end_time } = shiftTimeRange;
+    const { morning_cutoff } = locationHoursForDay;
 
+    try {
         for (const label of todaysAvailabilityLabels) {
             if (label === 'all_day') {
-                // 'all_day' covers any shift time
                 return true; 
             } else if (label === 'morning') {
-                // Shift must end by the cutoff time
-                if (shiftEndTime.getTime() <= locationMorningCutoff.getTime()) {
+                if (end_time <= morning_cutoff) {
                     return true;
                 }
             } else if (label === 'afternoon') {
-                // Shift must start at or after the cutoff time
-                if (shiftStartTime.getTime() >= locationMorningCutoff.getTime()) {
+                if (start_time >= morning_cutoff) {
                     return true;
                 }
             }
-            // Ignore 'none' label
         }
-
     } catch (error) {
-        console.error(`Error during availability check for ${dayOfWeek} (Shift: ${shiftTimeRange.start_time}-${shiftTimeRange.end_time}):`, error);
+        console.error(`Error during availability check for ${dayOfWeek} (Shift: ${start_time}-${end_time}):`, error);
         return false; 
     }
 

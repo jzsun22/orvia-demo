@@ -28,7 +28,9 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { toZonedTime } from "date-fns-tz";
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { startOfWeek, addDays, subDays, parse, isValid } from 'date-fns';
+import { APP_TIMEZONE } from "@/lib/time";
 
 const CheckmarkIcon = (props: React.ComponentProps<'svg'>) => (
   <svg
@@ -48,44 +50,11 @@ const CheckmarkIcon = (props: React.ComponentProps<'svg'>) => (
   </svg>
 );
 
-const PT_TIMEZONE = 'America/Los_Angeles';
-
-// Helper to get a Date object representing midnight PT for a given PT year, month, day
-function getPTMidnightDate(year: number, month: number, day: number): Date {
-  const sampleUTCNoon = Date.UTC(year, month - 1, day, 12, 0, 0);
-  const sampleDateObj = new Date(sampleUTCNoon);
-  const ptHourAtUTCNoonStr = sampleDateObj.toLocaleTimeString('en-US', {
-    timeZone: PT_TIMEZONE,
-    hour12: false,
-    hour: '2-digit',
-  });
-  const ptHourAtUTCNoon = parseInt(ptHourAtUTCNoonStr);
-  let utcHourForPTMidnight = (12 - ptHourAtUTCNoon + 24) % 24;
-  return new Date(Date.UTC(year, month - 1, day, utcHourForPTMidnight, 0, 0));
-}
-
-// Helper to get the Date object for Monday 00:00 PT of the week containing referenceDate
-function getWeekStartPT(referenceDate: Date): Date {
-  const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
-    timeZone: PT_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const [refYearPT, refMonthPT, refDayPT] = ptDateFormatter.format(referenceDate).split('-').map(Number);
-  let noonOnRefDayPT = getPTMidnightDate(refYearPT, refMonthPT, refDayPT);
-  noonOnRefDayPT.setUTCHours(noonOnRefDayPT.getUTCHours() + 12);
-  const dayOfWeekStrPT = noonOnRefDayPT.toLocaleDateString('en-US', {
-    timeZone: PT_TIMEZONE,
-    weekday: 'short',
-  });
-  const dayMapPT: { [key: string]: number } = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-  const dayOfWeekInPT = dayMapPT[dayOfWeekStrPT] !== undefined ? dayMapPT[dayOfWeekStrPT] : noonOnRefDayPT.getUTCDay();
-  const daysToSubtract = (dayOfWeekInPT - 1 + 7) % 7;
-  const mondayAtNoonPT = new Date(noonOnRefDayPT.getTime());
-  mondayAtNoonPT.setUTCDate(mondayAtNoonPT.getUTCDate() - daysToSubtract);
-  const [monYearPT, monMonthPT, monDayPT] = ptDateFormatter.format(mondayAtNoonPT).split('-').map(Number);
-  return getPTMidnightDate(monYearPT, monMonthPT, monDayPT);
+// Helper to get the start of the week (Monday) in Pacific Time for a given date.
+function getWeekStartPT(referenceDate?: Date): Date {
+  const date = referenceDate || new Date();
+  const zonedDate = toZonedTime(date, APP_TIMEZONE);
+  return startOfWeek(zonedDate, { weekStartsOn: 1 }); // 1 for Monday
 }
 
 const ButtonWrapper: React.FC<{
@@ -123,7 +92,7 @@ const SchedulePage = () => {
   const { showSuccessToast } = useAppToast();
   const locationSlug = params?.location as string;
 
-  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE)));
+  const [weekStart, setWeekStart] = useState<Date>(() => getWeekStartPT());
   const [editMode, setEditMode] = useState(false);
   const [selectedShiftModalContext, setSelectedShiftModalContext] = useState<ShiftClickContext | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -144,68 +113,45 @@ const SchedulePage = () => {
 
   useEffect(() => {
     const weekParam = searchParams.get('week');
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
-    });
-    let derivedMondayFromUrl: Date;
-    let needsUrlUpdate = false;
-    let newUrlWeekParam: string = '';
+    let derivedMonday: Date;
 
-    if (weekParam && /^\d{4}-\d{2}-\d{2}$/.test(weekParam)) {
-      const [year, month, day] = weekParam.split('-').map(Number);
-      const dateFromParamAsPTMidnight = getPTMidnightDate(year, month, day);
-      derivedMondayFromUrl = getWeekStartPT(dateFromParamAsPTMidnight);
-      const canonicalUrlParamForDerivedDate = ptDateFormatter.format(derivedMondayFromUrl);
-      if (weekParam !== canonicalUrlParamForDerivedDate) {
-        needsUrlUpdate = true;
-        newUrlWeekParam = canonicalUrlParamForDerivedDate;
+    if (weekParam) {
+      const parsedDate = parse(weekParam, 'yyyy-MM-dd', new Date());
+      if (isValid(parsedDate)) {
+        derivedMonday = getWeekStartPT(toZonedTime(parsedDate, APP_TIMEZONE));
       } else {
-        newUrlWeekParam = weekParam;
+        derivedMonday = getWeekStartPT(); // Fallback to current week
       }
     } else {
-      derivedMondayFromUrl = getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE));
-      needsUrlUpdate = true;
-      newUrlWeekParam = ptDateFormatter.format(derivedMondayFromUrl);
+      derivedMonday = getWeekStartPT(); // Default to current week
     }
 
-    if (weekStart.getTime() !== derivedMondayFromUrl.getTime()) {
-      setWeekStart(derivedMondayFromUrl);
+    const canonicalUrlParam = formatInTimeZone(derivedMonday, APP_TIMEZONE, 'yyyy-MM-dd');
+
+    if (weekStart.getTime() !== derivedMonday.getTime()) {
+      setWeekStart(derivedMonday);
     }
 
-    if (needsUrlUpdate && weekParam !== newUrlWeekParam) {
-      router.push(`/schedule/${locationSlug}?week=${newUrlWeekParam}`, { scroll: false });
+    if (weekParam !== canonicalUrlParam) {
+      router.push(`/schedule/${locationSlug}?week=${canonicalUrlParam}`, { scroll: false });
     }
   }, [searchParams, locationSlug, router, weekStart]);
 
   useEffect(() => {
-    const currentWeekMondayPT = getWeekStartPT(toZonedTime(new Date(), PT_TIMEZONE));
+    const currentWeekMondayPT = getWeekStartPT();
     setIsPastWeek(weekStart.getTime() < currentWeekMondayPT.getTime());
   }, [weekStart]);
 
   const handlePrevWeek = () => {
-    const currentWS = weekStart;
-    const prevWeekDate = new Date(currentWS.getTime());
-    prevWeekDate.setUTCDate(prevWeekDate.getUTCDate() - 7);
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
-    });
-    const formattedDate = ptDateFormatter.format(prevWeekDate);
-    if (locationSlug) {
-      router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
-    }
+    const prevWeekDate = subDays(weekStart, 7);
+    const formattedDate = formatInTimeZone(prevWeekDate, APP_TIMEZONE, 'yyyy-MM-dd');
+    router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
   };
 
   const handleNextWeek = () => {
-    const currentWS = weekStart;
-    const nextWeekDate = new Date(currentWS.getTime());
-    nextWeekDate.setUTCDate(nextWeekDate.getUTCDate() + 7);
-    const ptDateFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: PT_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit'
-    });
-    const formattedDate = ptDateFormatter.format(nextWeekDate);
-    if (locationSlug) {
-      router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
-    }
+    const nextWeekDate = addDays(weekStart, 7);
+    const formattedDate = formatInTimeZone(nextWeekDate, APP_TIMEZONE, 'yyyy-MM-dd');
+    router.push(`/schedule/${locationSlug}?week=${formattedDate}`, { scroll: false });
   };
 
   const handleGenerateSchedule = async () => {
@@ -233,9 +179,7 @@ const SchedulePage = () => {
 
       mutate();
 
-      const formattedWeekStart = weekStart.toLocaleDateString('en-US', {
-        year: 'numeric', month: 'long', day: 'numeric'
-      });
+      const formattedWeekStart = formatInTimeZone(weekStart, APP_TIMEZONE, 'MMMM d, yyyy');
       showSuccessToast(`Schedule for ${formatLocationName(locationName)} (week of ${formattedWeekStart}) generated successfully.`);
     } catch (error) {
       console.error("Error during schedule generation process:", error);

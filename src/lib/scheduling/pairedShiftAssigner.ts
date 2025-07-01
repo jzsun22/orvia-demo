@@ -12,9 +12,9 @@ import {
 import { ScheduleGenerationState } from './scheduleState';
 import { 
     mapDayOfWeekToDate, 
-    isShiftWithinAvailability
+    isShiftWithinAvailability,
+    calculateShiftDurationHours
 } from './utils';
-import { calculateShiftDurationHours } from './time-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Constants for the paired shift --- 

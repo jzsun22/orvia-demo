@@ -26,7 +26,8 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { APP_TIMEZONE, parseTime } from '@/lib/scheduling/time-utils';
+import { APP_TIMEZONE } from '@/lib/time';
+import { formatTime12hrWithMinutes } from '@/lib/time';
 import { formatInTimeZone } from 'date-fns-tz';
 
 // Define the availability type to match the backend structure
@@ -130,22 +131,6 @@ const capitalizeDay = (day: string): string => {
   // Ensure day is treated as lowercase before capitalizing first letter for consistency
   const lowerDay = day.toLowerCase();
   return lowerDay.charAt(0).toUpperCase() + lowerDay.slice(1);
-};
-
-// Use timezone-aware formatter
-const formatTime12hr = (timeStr: string | undefined | null): string => {
-  if (!timeStr) return '';
-  try {
-    // We need a full date to format with timezone. parseTime creates one for today
-    // in the correct APP_TIMEZONE.
-    const date = parseTime(timeStr);
-    
-    // 'h:mmaa' produces "1:00am", "1:00pm". toUpperCase() makes it "1:00AM", "1:00PM".
-    return formatInTimeZone(date, APP_TIMEZONE, 'h:mm a').toUpperCase();
-  } catch (error) {
-    console.warn(`Error formatting time ${timeStr}:`, error);
-    return timeStr; // Fallback to original string if parsing/formatting fails
-  }
 };
 
 export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: AvailabilityModalProps) {
@@ -401,7 +386,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         let conflict = false;
         let reason = "";
 
-        const shiftDetails = `${shift.position_name} shift (${formatTime12hr(shift.start_time)} - ${formatTime12hr(shift.end_time)}) at ${shift.location_name}`;
+        const shiftDetails = `${shift.position_name} shift (${formatTime12hrWithMinutes(shift.start_time)} - ${formatTime12hrWithMinutes(shift.end_time)}) at ${shift.location_name}`;
 
         if (currentDayAvailability.length === 0) { // 'Not Available'
           conflict = true;
@@ -412,7 +397,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
             reason = `is 'Morning Only', but a morning cutoff time is not defined for ${shift.location_name} on ${capitalizeDay(dayKey)}. Cannot verify compatibility with recurring ${shiftDetails}.`;
           } else if (shiftEndMinutes > cutoffMinutes) {
             conflict = true;
-            reason = `is 'Morning Only' (requires shifts to end by ${formatTime12hr(cutoffTime!)}), but recurring ${shiftDetails} ends later.`;
+            reason = `is 'Morning Only' (requires shifts to end by ${formatTime12hrWithMinutes(cutoffTime!)}), but recurring ${shiftDetails} ends later.`;
           }
         } else if (currentDayAvailability.includes('afternoon')) {
           if (cutoffMinutes === undefined) {
@@ -420,7 +405,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
             reason = `is 'Afternoon Only', but an afternoon start time (derived from morning cutoff) is not defined for ${shift.location_name} on ${capitalizeDay(dayKey)}. Cannot verify compatibility with recurring ${shiftDetails}.`;
           } else if (shiftStartMinutes < cutoffMinutes) {
             conflict = true;
-            reason = `is 'Afternoon Only' (requires shifts to start after ${formatTime12hr(cutoffTime!)}), but recurring ${shiftDetails} starts earlier.`;
+            reason = `is 'Afternoon Only' (requires shifts to start after ${formatTime12hrWithMinutes(cutoffTime!)}), but recurring ${shiftDetails} starts earlier.`;
           }
         }
         // No conflict for 'all_day' in this specific logic
@@ -730,7 +715,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
                             <div className="space-y-1">
                               <div className="font-medium">{capitalizeDay(shift.day_of_week)}</div>
                               <div className="text-xs text-ashmocha">
-                                {formatLocationName(shift.location_name)} • {shift.position_name} • {formatTime12hr(shift.start_time)} - {formatTime12hr(shift.end_time)}
+                                {formatLocationName(shift.location_name)} • {shift.position_name} • {formatTime12hrWithMinutes(shift.start_time)} - {formatTime12hrWithMinutes(shift.end_time)}
                                 {shift.assignment_type === 'lead' && (
                                   <span className="ml-1 text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded">Lead</span>
                                 )}
