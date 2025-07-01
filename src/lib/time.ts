@@ -13,13 +13,13 @@ export function formatTime12hr(timeStr: string): string {
   if (!timeStr) return '';
   const [hours, minutes] = timeStr.split(':').map(Number);
   
-  // Create a date object representing today in Pacific Time, then set the time.
-  const nowInPT = toZonedTime(new Date(), APP_TIMEZONE);
-  const dateInPT = new Date(nowInPT.getFullYear(), nowInPT.getMonth(), nowInPT.getDate(), hours, minutes);
-
+  // Create a UTC date with the given time, then format it in Pacific Time
+  // Using a fixed date (2000-01-01) to avoid any date-related timezone issues
+  const utcDate = new Date(Date.UTC(2000, 0, 1, hours, minutes));
+  
   const formatString = minutes === 0 ? 'h a' : 'h:mm a';
   
-  return formatInTimeZone(dateInPT, APP_TIMEZONE, formatString);
+  return formatInTimeZone(utcDate, APP_TIMEZONE, formatString);
 }
 
 /**
@@ -33,13 +33,14 @@ export function formatTime12hrWithMinutes(timeStr: string): string {
   if (!timeStr) return '';
   const [hours, minutes] = timeStr.split(':').map(Number);
   
-  const nowInPT = toZonedTime(new Date(), APP_TIMEZONE);
-  const dateInPT = new Date(nowInPT.getFullYear(), nowInPT.getMonth(), nowInPT.getDate(), hours, minutes);
+  // Create a UTC date with the given time, then format it in Pacific Time
+  // Using a fixed date (2000-01-01) to avoid any date-related timezone issues
+  const utcDate = new Date(Date.UTC(2000, 0, 1, hours, minutes));
 
-  // 'h:mm a' -> '9:00 pm'
-  const formattedTime = formatInTimeZone(dateInPT, APP_TIMEZONE, 'h:mm a');
+  // Format in Pacific Time and convert to uppercase
+  const formattedTime = formatInTimeZone(utcDate, APP_TIMEZONE, 'h:mm a');
   
-  // '9:00 pm' -> '9:00 PM'
+  // Convert am/pm to AM/PM
   const lastTwo = formattedTime.slice(-2);
   return formattedTime.slice(0, -2) + lastTwo.toUpperCase();
 } 

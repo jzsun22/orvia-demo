@@ -52,9 +52,14 @@ const CheckmarkIcon = (props: React.ComponentProps<'svg'>) => (
 
 // Helper to get the start of the week (Monday) in Pacific Time for a given date.
 function getWeekStartPT(referenceDate?: Date): Date {
-  const date = referenceDate || new Date();
-  const zonedDate = toZonedTime(date, APP_TIMEZONE);
-  return startOfWeek(zonedDate, { weekStartsOn: 1 }); // 1 for Monday
+  if (referenceDate) {
+    // If a specific date is provided, use it directly to find the week start
+    return startOfWeek(referenceDate, { weekStartsOn: 1 });
+  }
+  
+  // For current week, get the current time in Pacific Time
+  const nowInPT = toZonedTime(new Date(), APP_TIMEZONE);
+  return startOfWeek(nowInPT, { weekStartsOn: 1 }); // 1 for Monday
 }
 
 const ButtonWrapper: React.FC<{
@@ -116,9 +121,12 @@ const SchedulePage = () => {
     let derivedMonday: Date;
 
     if (weekParam) {
+      // Parse the date parameter and ensure it's treated as a calendar date
       const parsedDate = parse(weekParam, 'yyyy-MM-dd', new Date());
       if (isValid(parsedDate)) {
-        derivedMonday = getWeekStartPT(toZonedTime(parsedDate, APP_TIMEZONE));
+        // Convert to Pacific time for consistency, then get week start
+        const dateInPT = toZonedTime(parsedDate, APP_TIMEZONE);
+        derivedMonday = getWeekStartPT(dateInPT);
       } else {
         derivedMonday = getWeekStartPT(); // Fallback to current week
       }
@@ -126,16 +134,22 @@ const SchedulePage = () => {
       derivedMonday = getWeekStartPT(); // Default to current week
     }
 
+    // Always format the canonical URL parameter using the derived Monday
     const canonicalUrlParam = formatInTimeZone(derivedMonday, APP_TIMEZONE, 'yyyy-MM-dd');
 
-    if (weekStart.getTime() !== derivedMonday.getTime()) {
+    // Only update state if the derived date is actually different
+    const currentWeekStartTime = weekStart.getTime();
+    const derivedWeekStartTime = derivedMonday.getTime();
+    
+    if (currentWeekStartTime !== derivedWeekStartTime) {
       setWeekStart(derivedMonday);
     }
 
+    // Only update URL if the parameter is actually different
     if (weekParam !== canonicalUrlParam) {
       router.push(`/schedule/${locationSlug}?week=${canonicalUrlParam}`, { scroll: false });
     }
-  }, [searchParams, locationSlug, router, weekStart]);
+  }, [searchParams, locationSlug, router]); // Removed weekStart from dependencies to prevent infinite loop
 
   useEffect(() => {
     const currentWeekMondayPT = getWeekStartPT();
