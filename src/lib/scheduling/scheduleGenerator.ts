@@ -145,7 +145,7 @@ export async function generateWeeklySchedule(
 
         // --- 3. Process Paired Shifts (Cedar Loop Specific) ---
         // Only run paired shift logic if the location is Cedar Loop
-        const CEDAR_LOOP_LOCATION_ID = process.env.CEDAR_LOOP_LOCATION_ID; // ID from pairedShiftAssigner.ts
+        const CEDAR_LOOP_LOCATION_ID = process.env.NEXT_PUBLIC_CEDAR_LOOP_LOCATION_ID;
         if (locationId === CEDAR_LOOP_LOCATION_ID) {
             const pairedResult = processPairedPrepBaristaShifts(
                 templates, 

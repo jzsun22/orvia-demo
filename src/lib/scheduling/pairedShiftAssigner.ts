@@ -18,8 +18,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 
 // --- Constants for the paired shift --- 
-const CEDAR_LOOP_LOCATION_ID = process.env.CEDAR_LOOP_LOCATION_ID;
-const PREP_BARISTA_POSITION_ID = process.env.PREP_BARISTA_POSITION_ID;
+const CEDAR_LOOP_LOCATION_ID = process.env.NEXT_PUBLIC_CEDAR_LOOP_LOCATION_ID;
+const PREP_BARISTA_POSITION_ID = process.env.NEXT_PUBLIC_PREP_BARISTA_POSITION_ID;
 const PAIR_SHIFT1_START = '09:30:00';
 const PAIR_SHIFT1_END = '12:00:00';
 const PAIR_SHIFT2_START = '12:00:00';
@@ -106,7 +106,6 @@ export function processPairedPrepBaristaShifts(
              console.log(`[PairedShiftAssigner] ERROR: Missing operating hours for ${dayOfWeek} on ${shiftDate.toISOString().split('T')[0]}.`);
              continue;
         }
-        console.log(`[PairedShiftAssigner] Operating hours for ${dayOfWeek} (${shiftDate.toISOString().split('T')[0]}):`, locationHours);
 
         const candidates = workers.filter(worker => {
             const logPrefix = `[PairedShiftAssigner] Worker ${worker.id} (${worker.first_name} ${worker.last_name}) for date ${shiftDate.toISOString().split('T')[0]}:`;
