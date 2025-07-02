@@ -28,8 +28,8 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
-import { startOfWeek, addDays, subDays, parse, isValid } from 'date-fns';
+import { toDate, formatInTimeZone, toZonedTime } from 'date-fns-tz';
+import { startOfWeek, addDays, subDays, isValid } from 'date-fns';
 import { APP_TIMEZONE } from "@/lib/time";
 
 const CheckmarkIcon = (props: React.ComponentProps<'svg'>) => (
@@ -121,12 +121,13 @@ const SchedulePage = () => {
     let derivedMonday: Date;
 
     if (weekParam) {
-      const parsedDate = parse(weekParam, 'yyyy-MM-dd', new Date());
+      // Use `toDate` with `APP_TIMEZONE` to correctly parse the date string
+      // from the URL, treating it as a date in Pacific Time regardless of the
+      // user's system timezone. Appending T00:00:00 ensures it's the start of the day.
+      const parsedDate = toDate(`${weekParam}T00:00:00`, { timeZone: APP_TIMEZONE });
+      
       if (isValid(parsedDate)) {
-        // The parsedDate is a JS Date object. We need to treat its parts (year, month, day)
-        // as belonging to the app's timezone, not the system's.
-        const dateInPT = toZonedTime(parsedDate, APP_TIMEZONE);
-        derivedMonday = startOfWeek(dateInPT, { weekStartsOn: 1 });
+        derivedMonday = startOfWeek(parsedDate, { weekStartsOn: 1 });
       } else {
         // Fallback to current week if URL param is invalid
         derivedMonday = getWeekStartPT();
