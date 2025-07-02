@@ -2,6 +2,9 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { formatInTimeZone } from "date-fns-tz";
+import { addDays } from "date-fns";
+import { APP_TIMEZONE } from "@/lib/time";
 
 interface WeekNavigatorProps {
   weekStart: Date;
@@ -11,12 +14,11 @@ interface WeekNavigatorProps {
 }
 
 function formatDate(date: Date) {
-  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return formatInTimeZone(date, APP_TIMEZONE, "MMM d");
 }
 
 const WeekNavigator: React.FC<WeekNavigatorProps> = ({ weekStart, onPrev, onNext, isLoading }) => {
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekStart.getDate() + 6);
+  const weekEnd = addDays(weekStart, 6);
   return (
     <div className="flex items-center justify-center gap-2">
       <Button

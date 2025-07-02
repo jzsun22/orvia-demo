@@ -11,7 +11,9 @@ import {
   ShiftContext, 
   PrefetchedWorkerEligibilityData, 
   ScheduledShiftData, 
-  ShiftTemplateData } from '../_shared/utils.ts'; 
+  ShiftTemplateData,
+  getDayOfWeekName 
+} from '../_shared/utils.ts'; 
 
 import { 
   fetchWorkersByLocation,
@@ -302,14 +304,6 @@ Deno.serve(async (req: Request) => {
 });
 
 console.log('[get-eligible-workers] FILE EXECUTION END - After Deno.serve');
-
-// Helper function (can be moved to utils.ts if used elsewhere)
-function getDayOfWeekName(dateString: string): DayOfWeek { // Ensure DayOfWeek type is imported or defined
-  const date = new Date(dateString + 'T00:00:00');
-  const dayIndex = date.getDay();
-  const days: DayOfWeek[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-  return days[dayIndex];
-}
 
 // Need to import DayOfWeek type if not already available
 import type { DayOfWeek, ScheduledShiftData as LibScheduledShiftData, ShiftTemplateData as LibShiftTemplateData } from '../../../src/lib/types.ts'; // Corrected path, uncommented

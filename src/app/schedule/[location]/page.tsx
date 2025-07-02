@@ -121,35 +121,34 @@ const SchedulePage = () => {
     let derivedMonday: Date;
 
     if (weekParam) {
-      // Parse the date parameter and ensure it's treated as a calendar date
       const parsedDate = parse(weekParam, 'yyyy-MM-dd', new Date());
       if (isValid(parsedDate)) {
-        // Convert to Pacific time for consistency, then get week start
+        // The parsedDate is a JS Date object. We need to treat its parts (year, month, day)
+        // as belonging to the app's timezone, not the system's.
         const dateInPT = toZonedTime(parsedDate, APP_TIMEZONE);
-        derivedMonday = getWeekStartPT(dateInPT);
+        derivedMonday = startOfWeek(dateInPT, { weekStartsOn: 1 });
       } else {
-        derivedMonday = getWeekStartPT(); // Fallback to current week
+        // Fallback to current week if URL param is invalid
+        derivedMonday = getWeekStartPT();
       }
     } else {
-      derivedMonday = getWeekStartPT(); // Default to current week
+      // Default to current week if no URL param
+      derivedMonday = getWeekStartPT();
     }
-
+    
     // Always format the canonical URL parameter using the derived Monday
     const canonicalUrlParam = formatInTimeZone(derivedMonday, APP_TIMEZONE, 'yyyy-MM-dd');
 
-    // Only update state if the derived date is actually different
-    const currentWeekStartTime = weekStart.getTime();
-    const derivedWeekStartTime = derivedMonday.getTime();
-    
-    if (currentWeekStartTime !== derivedWeekStartTime) {
+    // Update state only if the derived date is different
+    if (weekStart.getTime() !== derivedMonday.getTime()) {
       setWeekStart(derivedMonday);
     }
 
-    // Only update URL if the parameter is actually different
+    // Update URL only if the parameter is different, to avoid unnecessary re-renders
     if (weekParam !== canonicalUrlParam) {
       router.push(`/schedule/${locationSlug}?week=${canonicalUrlParam}`, { scroll: false });
     }
-  }, [searchParams, locationSlug, router]); // Removed weekStart from dependencies to prevent infinite loop
+  }, [searchParams, locationSlug, router, weekStart]);
 
   useEffect(() => {
     const currentWeekMondayPT = getWeekStartPT();

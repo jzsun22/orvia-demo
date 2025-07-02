@@ -11,7 +11,7 @@ import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScreenSize } from '@/hooks/useScreenSize';
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
+import { toZonedTime, formatInTimeZone, toDate } from 'date-fns-tz';
 import { APP_TIMEZONE } from '@/lib/time';
 
 interface LocationCardData {
@@ -217,7 +217,7 @@ export default function Dashboard() {
                         <span className="text-sm text-deeproseblush">
                           {worker.isToday ? 'today' : worker.dayOfWeek}
                           {' '}
-                          ({worker.birthday ? `${formatInTimeZone(new Date(worker.birthday), APP_TIMEZONE, 'MM/dd')}` : ''})
+                          ({worker.birthday ? `${formatInTimeZone(toDate(worker.birthday, { timeZone: 'UTC' }), APP_TIMEZONE, 'MM/dd')}` : ''})
                         </span>
                       </li>
                     ))

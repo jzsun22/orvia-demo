@@ -3,8 +3,8 @@ import { Edit3 } from 'lucide-react';
 import { prefetchEligibleWorkers } from '@/hooks/useEligibleWorkers';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { addDays, format } from 'date-fns';
-import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
-import { APP_TIMEZONE, formatTime12hr as formatTimeInPT } from "@/lib/time";
+import { toDate, formatInTimeZone } from 'date-fns-tz';
+import { APP_TIMEZONE, formatTime12hr } from "@/lib/time";
 
 interface Worker {
   id: string;
@@ -123,7 +123,7 @@ function formatWorkerDisplay(
     namePartElements.push(
       <span className="inline-flex items-center">
         <span className="font-normal text-gray-600 text-[11px] align-baseline ml-1 mt-[1.5px]">
-          {`(${formatTimeInPT(assignedStart)} - ${formatTimeInPT(assignedEnd)})`}
+          {`(${formatTime12hr(assignedStart)} - ${formatTime12hr(assignedEnd)})`}
         </span>
       </span>
     );
@@ -199,7 +199,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
              }
           }
 
-          const headerTimeText = `${formatTimeInPT(template.start_time || '')} - ${formatTimeInPT(template.end_time || '')}`;
+          const headerTimeText = `${formatTime12hr(template.start_time || '')} - ${formatTime12hr(template.end_time || '')}`;
           processedColumnsMap.set(groupKey, {
             id: groupKey,
             positionId: template.position_id,
@@ -219,12 +219,12 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
             const definedClosingTimes = new Set(["21:00:00", "21:30:00"]);
             const allVaryingTimesAreDefinedClosingTimes = uniqueEndTimes.every(et => definedClosingTimes.has(et));
             if (allVaryingTimesAreDefinedClosingTimes) {
-              existingGroup.headerTimeText = `${formatTimeInPT(existingGroup.startTime)} - Close`;
+              existingGroup.headerTimeText = `${formatTime12hr(existingGroup.startTime)} - Close`;
             } else {
-              existingGroup.headerTimeText = `${formatTimeInPT(existingGroup.startTime)} - Various`;
+              existingGroup.headerTimeText = `${formatTime12hr(existingGroup.startTime)} - Various`;
             }
           } else {
-            existingGroup.headerTimeText = `${formatTimeInPT(existingGroup.startTime)} - ${formatTimeInPT(uniqueEndTimes[0])}`;
+            existingGroup.headerTimeText = `${formatTime12hr(existingGroup.startTime)} - ${formatTime12hr(uniqueEndTimes[0])}`;
           }
         }
       });
@@ -336,11 +336,11 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                       <div className="flex w-full">
                         <div className="w-1/2 text-center p-2 border-r">
                           <div className="truncate font-medium">{pCol.headerText}</div>
-                          <div className="text-ashmocha text-[11px] 2xl:text-xs truncate">{formatTimeInPT(pCol.startTime)} - {formatTimeInPT(pCol.memberTemplates[0].end_time)}</div>
+                          <div className="text-ashmocha text-[11px] 2xl:text-xs truncate">{formatTime12hr(pCol.startTime)} - {formatTime12hr(pCol.memberTemplates[0].end_time)}</div>
                         </div>
                         <div className="w-1/2 text-center p-2">
                           <div className="truncate font-medium">{nextCol.headerText}</div>
-                          <div className="text-ashmocha text-[11px] 2xl:text-xs truncate">{formatTimeInPT(nextCol.startTime)} - {formatTimeInPT(nextCol.memberTemplates[0].end_time)}</div>
+                          <div className="text-ashmocha text-[11px] 2xl:text-xs truncate">{formatTime12hr(nextCol.startTime)} - {formatTime12hr(nextCol.memberTemplates[0].end_time)}</div>
                         </div>
                       </div>
                     </th>
@@ -394,7 +394,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                 <td className="pl-3 pr-4 py-2.5 border-r font-medium whitespace-nowrap align-top w-[100px] 2xl:w-[120px] bg-card">
                   <div className="flex flex-col">
                     <span className={isToday ? "font-bold text-[#956D60]" : undefined}>{DAYS_OF_WEEK[dayIndex]}</span>
-                    <span className="text-[11px] 2xl:text-xs text-ashmocha">{date.toLocaleDateString('en-US', { month: '2-digit', day: '2-digit' })}</span>
+                    <span className="text-[11px] 2xl:text-xs text-ashmocha">{formatInTimeZone(date, APP_TIMEZONE, 'MM/dd')}</span>
                   </div>
                 </td>
                 {(() => {
@@ -529,7 +529,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
                                         (shift.trainingWorkerAssignedStart !== (shift.start_time || '') || shift.trainingWorkerAssignedEnd !== (shift.end_time || ''))
                                       ) && (
                                         <span className="text-ashmocha font-normal text-[10px] 2xl:text-[11px] block text-center">
-                                          ({formatTimeInPT(shift.trainingWorkerAssignedStart || '')} - {formatTimeInPT(shift.trainingWorkerAssignedEnd || '')})
+                                          ({formatTime12hr(shift.trainingWorkerAssignedStart || '')} - {formatTime12hr(shift.trainingWorkerAssignedEnd || '')})
                                         </span>
                                       )}
                                     </div>
