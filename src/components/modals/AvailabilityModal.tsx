@@ -62,6 +62,7 @@ interface AvailabilityModalProps {
     first_name: string;
     last_name: string;
     availability: Availability;
+    is_lead: boolean;
   };
 }
 
@@ -795,6 +796,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         onClose={() => setIsRecurringShiftModalOpen(false)}
         onSuccess={handleRecurringShiftSave}
         employeeId={employee.id}
+        employeeIsLead={employee.is_lead}
         shift={selectedShift}
         isEditing={isEditing}
         existingRecurringShifts={recurringShifts}

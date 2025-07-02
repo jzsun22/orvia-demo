@@ -118,12 +118,15 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           console.log('[EditShiftModal useEffect] Received currentAssignments from API:', JSON.stringify(data?.currentAssignments, null, 2));
           setDraftAssignments(data.currentAssignments || []);
 
-          if (data.position?.id === PREP_BARISTA_POSITION_ID && data.scheduledShift && PAIRED_TEMPLATE_ID_2) {
+          if (data.position?.id === PREP_BARISTA_POSITION_ID && data.scheduledShift && PAIRED_TEMPLATE_ID_1 && PAIRED_TEMPLATE_ID_2) {
+            const currentTemplateId = data.scheduledShift.template_id;
+            const partnerTemplateId = currentTemplateId === PAIRED_TEMPLATE_ID_1 ? PAIRED_TEMPLATE_ID_2 : PAIRED_TEMPLATE_ID_1;
+
             const { data: partnerShift, error: partnerError } = await supabase
               .from('scheduled_shifts')
               .select('id, end_time')
               .eq('shift_date', data.scheduledShift.shift_date)
-              .eq('template_id', PAIRED_TEMPLATE_ID_2) // Assuming the partner is always template 2
+              .eq('template_id', partnerTemplateId) 
               .neq('id', data.scheduledShift.id)
               .single();
 
@@ -688,11 +691,11 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     if (primaryAssignment) {
       const start = primaryAssignment.assigned_start;
       const end = primaryAssignment.assigned_end;
-      if (!start || !/^\d{2}:\d{2}(:\d{2})?$/.test(start)) {
+      if (start && !/^\d{2}:\d{2}(:\d{2})?$/.test(start)) {
         newTimeValidationErrors.primary_start = 'Invalid format (HH:mm)';
         isValid = false;
       }
-      if (!end || !/^\d{2}:\d{2}(:\d{2})?$/.test(end)) {
+      if (end && !/^\d{2}:\d{2}(:\d{2})?$/.test(end)) {
         newTimeValidationErrors.primary_end = 'Invalid format (HH:mm)';
         isValid = false;
       }
@@ -776,10 +779,10 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
 
         // Partner shift update, if applicable
         if (pairedShiftInfo && pairedShiftInfo.partnerShiftId !== 'new-partner') {
+          console.log(`[EditShiftModal DEBUG] Updating partner shift. PairedShiftInfo:`, pairedShiftInfo);
           // For the partner shift, we send the same desired worker assignments, but we strip the
           // database-specific 'id' field. This signals to the 'update-shift-assignments' API
           // that it should reconcile the partner shift's assignments to match this desired state,
-          // rather than trying to update assignments by an ID that belongs to the primary shift.
           const partnerAssignments = finalAssignmentsToSave.map(({ id, ...rest }) => ({
             ...rest,
             id: undefined, // Force 'add' logic on backend for reconciliation.

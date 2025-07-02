@@ -89,19 +89,50 @@ export const staffStatsFetcher = async (client: SupabaseClient) => {
         await fetchScheduledShifts(client, location.id, weekStart, weekEnd)
       // Fetch required shift templates for the location
       const shiftTemplates = await fetchShiftTemplates(client, location.id)
-      // Calculate required shifts based on days_of_week in each template
-      const requiredShifts = shiftTemplates.reduce(
-        (sum: number, template: any) =>
-          sum +
-          (Array.isArray(template.days_of_week)
-            ? template.days_of_week.length
-            : 0),
-        0
-      )
-      // Count filled shifts
-      const filledShifts = scheduledShifts.filter(
-        (shift: any) => shift.worker_id
-      ).length
+
+      // Calculate required shifts, counting shifts with the same schedule_column_group on the same day as one.
+      const dailyRequired = new Map<string, Set<string | number>>()
+      shiftTemplates.forEach((template: any) => {
+        if (Array.isArray(template.days_of_week)) {
+          template.days_of_week.forEach((day: string) => {
+            // Guard against bad data and sanitize day string
+            if (typeof day !== 'string') return;
+            const cleanDay = day.trim().toLowerCase();
+
+            if (!dailyRequired.has(cleanDay)) {
+              dailyRequired.set(cleanDay, new Set())
+            }
+            const daySet = dailyRequired.get(cleanDay)!
+
+            // Use != null to handle both null and undefined for schedule_column_group
+            if (template.schedule_column_group != null) {
+              daySet.add(template.schedule_column_group)
+            } else {
+              // For templates without a group, count them individually using a unique identifier
+              daySet.add(template.id)
+            }
+          })
+        }
+      })
+
+      let requiredShifts = 0
+      for (const daySet of Array.from(dailyRequired.values())) {
+        requiredShifts += daySet.size
+      }
+
+      // Count filled shifts based on 'regular' and 'lead' assignment types
+      const filledShifts = scheduledShifts.reduce((count, shift) => {
+        if (shift.shift_assignments && Array.isArray(shift.shift_assignments)) {
+          const validAssignments = shift.shift_assignments.filter(
+            (assignment) =>
+              assignment.assignment_type === 'regular' ||
+              assignment.assignment_type === 'lead'
+          ).length
+          return count + validAssignments
+        }
+        return count
+      }, 0)
+      
       // Fetch all active workers for this location
       const allWorkers = await fetchWorkers(client)
       const activeWorkers = allWorkers.filter(

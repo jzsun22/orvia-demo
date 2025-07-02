@@ -212,10 +212,11 @@ export const fetchSchedulingPrerequisites = async (client: SupabaseClient, locat
 // Type for scheduled shift with joined fields (via shift_template)
 export type ScheduledShiftWithJoins = Database['public']['Tables']['scheduled_shifts']['Row'] & {
   worker: Pick<Database['public']['Tables']['workers']['Row'], 'id' | 'first_name' | 'last_name' | 'preferred_name'> | null;
-  shift_template: (Pick<Database['public']['Tables']['shift_templates']['Row'], 'id' | 'position_id' | 'location_id'> & {
+  shift_template: (Pick<Database['public']['Tables']['shift_templates']['Row'], 'id' | 'position_id' | 'location_id' | 'schedule_column_group'> & {
     position: Pick<Database['public']['Tables']['positions']['Row'], 'id' | 'name'> | null;
     location: Pick<Database['public']['Tables']['locations']['Row'], 'id' | 'name'> | null;
   }) | null;
+  shift_assignments: (Pick<Database['public']['Tables']['shift_assignments']['Row'], 'assignment_type'>)[];
 };
 
 export const fetchScheduledShifts = async (
@@ -239,6 +240,7 @@ export const fetchScheduledShifts = async (
         id,
         position_id,
         location_id,
+        schedule_column_group,
         position:positions (
           id,
           name
@@ -247,6 +249,9 @@ export const fetchScheduledShifts = async (
           id,
           name
         )
+      ),
+      shift_assignments (
+        assignment_type
       )
     `)
     .gte('shift_date', startDate)

@@ -36,6 +36,7 @@ interface RecurringShiftModalProps {
   onClose: () => void;
   onSuccess: (data: { savedShift: RecurringShift; isNew: boolean }) => void;
   employeeId: string;
+  employeeIsLead?: boolean;
   shift?: RecurringShift | null;
   isEditing: boolean;
   existingRecurringShifts: RecurringShift[];
@@ -54,6 +55,7 @@ export function RecurringShiftModal({
   onClose,
   onSuccess,
   employeeId,
+  employeeIsLead,
   shift,
   isEditing,
   existingRecurringShifts
@@ -314,12 +316,21 @@ export function RecurringShiftModal({
     setLoading(true);
     setError(null);
 
-    // Basic validation (can be expanded)
     if (!dayOfWeek || !locationId || !positionId || !startTime || !endTime) {
-      setError('Please fill in all required fields.');
+      setError('Please fill in all fields.');
       setLoading(false);
       return;
     }
+
+    if (assignmentType === 'lead' && !employeeIsLead) {
+      setError('This worker is not a lead and cannot be assigned a recurring lead shift.');
+      setLoading(false);
+      return;
+    }
+
+    // Check for overlapping shifts
+    const newShiftDay = dayOfWeek.toLowerCase();
+    const newShiftStart = new Date(`1970-01-01T${startTime}`);
 
     // Duplicate check
     const isDuplicate = existingRecurringShifts.some(
@@ -330,7 +341,7 @@ export function RecurringShiftModal({
           return false; // Don't compare the shift being edited against itself
         }
         return (
-          existingShift.day_of_week.toLowerCase() === dayOfWeek.toLowerCase() &&
+          existingShift.day_of_week.toLowerCase() === newShiftDay &&
           existingShift.location_id === locationId &&
           existingShift.position_id === positionId &&
           existingShift.start_time === startTime &&
@@ -350,7 +361,7 @@ export function RecurringShiftModal({
 
     const shiftDataToSave = {
       worker_id: employeeId,
-      day_of_week: dayOfWeek.toLowerCase(), // Store lowercase in DB
+      day_of_week: newShiftDay,
       location_id: locationId,
       position_id: positionId,
       start_time: startTime,

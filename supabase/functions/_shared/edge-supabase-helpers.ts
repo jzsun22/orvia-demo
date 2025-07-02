@@ -36,12 +36,12 @@ export const fetchShiftDetailsForContext = async (
       template_id,
       is_recurring_generated,
       created_at,
-      shift_templates!inner (
+      shift_templates (
         lead_type,
         location_id,
         position_id,
-        locations!inner (id, name),
-        positions!inner (id, name)
+        locations (id, name),
+        positions (id, name)
       )
     `)
     .eq('id', scheduledShiftId)
