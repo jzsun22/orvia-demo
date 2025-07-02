@@ -28,20 +28,27 @@ import {
   AlertDialogAction,
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
-import { toDate, formatInTimeZone, toZonedTime } from 'date-fns-tz';
-import { startOfWeek, addDays, subDays, isValid } from 'date-fns';
+import { toDate, formatInTimeZone } from 'date-fns-tz';
+import { addDays, subDays, isValid } from 'date-fns';
 import { APP_TIMEZONE } from "@/lib/time";
 
 // Helper to get the start of the week (Monday) in Pacific Time for a given date.
 function getWeekStartPT(referenceDate?: Date): Date {
-  if (referenceDate) {
-    // If a specific date is provided, use it directly to find the week start
-    return startOfWeek(referenceDate, { weekStartsOn: 1 });
-  }
+  const ref = referenceDate || new Date();
+
+  // Get the day of the week in Pacific Time (1 for Monday, 7 for Sunday)
+  const dayOfWeekInPT = parseInt(formatInTimeZone(ref, APP_TIMEZONE, 'i'), 10);
+
+  // We want to get to Monday (day 1).
+  const daysToSubtract = (dayOfWeekInPT - 1 + 7) % 7;
   
-  // For current week, get the current time in Pacific Time
-  const nowInPT = toZonedTime(new Date(), APP_TIMEZONE);
-  return startOfWeek(nowInPT, { weekStartsOn: 1 }); // 1 for Monday
+  // subDays is safe to use here. It subtracts 24-hour periods.
+  const mondayCandidate = subDays(ref, daysToSubtract);
+
+  // Now we have the correct day, but we need to ensure the time is at midnight
+  // in Pacific Time, so we format to a string and parse it back.
+  const dateString = formatInTimeZone(mondayCandidate, APP_TIMEZONE, 'yyyy-MM-dd');
+  return toDate(`${dateString}T00:00:00`, { timeZone: APP_TIMEZONE });
 }
 
 const ButtonWrapper: React.FC<{
@@ -103,13 +110,9 @@ const SchedulePage = () => {
     let derivedMonday: Date;
 
     if (weekParam) {
-      // Use `toDate` with `APP_TIMEZONE` to correctly parse the date string
-      // from the URL, treating it as a date in Pacific Time regardless of the
-      // user's system timezone. Appending T00:00:00 ensures it's the start of the day.
       const parsedDate = toDate(`${weekParam}T00:00:00`, { timeZone: APP_TIMEZONE });
-      
       if (isValid(parsedDate)) {
-        derivedMonday = startOfWeek(parsedDate, { weekStartsOn: 1 });
+        derivedMonday = getWeekStartPT(parsedDate);
       } else {
         // Fallback to current week if URL param is invalid
         derivedMonday = getWeekStartPT();
