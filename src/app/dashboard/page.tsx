@@ -217,7 +217,7 @@ export default function Dashboard() {
                         <span className="text-sm text-deeproseblush">
                           {worker.isToday ? 'today' : worker.dayOfWeek}
                           {' '}
-                          ({worker.birthday ? `${formatInTimeZone(toDate(worker.birthday, { timeZone: 'UTC' }), APP_TIMEZONE, 'MM/dd')}` : ''})
+                          ({worker.birthdayThisYear ? `${formatInTimeZone(worker.birthdayThisYear, APP_TIMEZONE, 'MM/dd')}` : ''})
                         </span>
                       </li>
                     ))
