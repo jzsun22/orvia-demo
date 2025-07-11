@@ -58,11 +58,12 @@ export async function middleware(req: NextRequest) {
   // 2. Handle redirects for authenticated users trying to access auth routes
   if (isAuthenticated && (isAuthRoute || req.nextUrl.pathname === '/')) {
     const redirectResponse = NextResponse.redirect(new URL('/dashboard', req.url));
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Expire in 1 year
     // Set activity cookie on redirect to ensure session starts immediately
     redirectResponse.cookies.set(LAST_ACTIVITY_COOKIE, Date.now().toString(), {
       path: '/',
       httpOnly: true,
-      maxAge: SESSION_TIMEOUT_MS / 1000,
+      expires,
     });
     return redirectResponse;
   }
@@ -87,11 +88,12 @@ export async function middleware(req: NextRequest) {
       return redirectResponse;
     }
 
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // Expire in 1 year
     // If active, update the session cookie on the ongoing response
     response.cookies.set(LAST_ACTIVITY_COOKIE, now.toString(), {
       path: '/',
       httpOnly: true,
-      maxAge: SESSION_TIMEOUT_MS / 1000,
+      expires,
     });
   }
 
