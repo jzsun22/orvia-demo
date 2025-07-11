@@ -10,14 +10,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const isLoginPage = pathname === '/login';
 
   return (
-    <>
+    <ResponsiveGuard>
       {isLoginPage ? (
         children
       ) : (
-        <ResponsiveGuard>
-          <MainLayoutClient>{children}</MainLayoutClient>
-        </ResponsiveGuard>
+        <MainLayoutClient>{children}</MainLayoutClient>
       )}
-    </>
+    </ResponsiveGuard>
   );
 } 

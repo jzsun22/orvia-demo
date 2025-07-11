@@ -4,7 +4,9 @@ import { usePathname } from 'next/navigation';
 import { SidebarNav } from "@/components/layout/SidebarNav";
 import AuthorshipNote from "@/components/layout/AuthorshipNote";
 import { PanelLeft } from "lucide-react";
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+
+const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
 export default function MainLayoutClient({
   children,
@@ -14,6 +16,41 @@ export default function MainLayoutClient({
   const pathname = usePathname();
   const showSidebar = pathname !== '/login';
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (showSidebar) { // Only run timer on authenticated pages
+      const resetTimer = () => {
+        if (timeoutIdRef.current) {
+          clearTimeout(timeoutIdRef.current);
+        }
+        timeoutIdRef.current = setTimeout(() => {
+          window.location.reload();
+        }, INACTIVITY_TIMEOUT_MS);
+      };
+
+      const activityEvents: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'click', 'scroll'];
+      
+      const handleActivity = () => {
+        resetTimer();
+      };
+
+      activityEvents.forEach(event => {
+        window.addEventListener(event, handleActivity);
+      });
+
+      resetTimer(); // Start the timer initially
+
+      return () => {
+        if (timeoutIdRef.current) {
+          clearTimeout(timeoutIdRef.current);
+        }
+        activityEvents.forEach(event => {
+          window.removeEventListener(event, handleActivity);
+        });
+      };
+    }
+  }, [showSidebar]);
 
   return (
     <div className="flex h-full">
