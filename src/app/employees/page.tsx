@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { formatWorkerName, formatLocationName, cn } from '@/lib/utils';
-import { DatabaseWorker, Employee, JobLevel, Location, Position } from '@/lib/types';
+import { DatabaseWorker, Employee } from '@/lib/types';
 import { Badge } from '@/components/ui/badge';
 import EmployeeTableSkeleton from '@/components/employees/EmployeeTableSkeleton';
 import { useRouter } from 'next/navigation';
@@ -264,7 +264,7 @@ export default function EmployeesPage() {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className={cn("flex items-center gap-2 px-6 h-9 2xl:h-11 py-2 bg-deeproseblush text-white text-sm font-semibold rounded-lg hover:bg-deeproseblush/90 transition-all duration-200 hover:shadow-sm", { "opacity-50 cursur-not-allowed pointer-events-none": loading, })}
+            className={cn("my-cta-shadow flex items-center gap-2 px-6 h-9 2xl:h-11 py-2 bg-deeproseblush text-white text-sm font-semibold rounded-lg hover:bg-deeproseblush/90 transition-all duration-200", { "opacity-50 cursur-not-allowed pointer-events-none": loading, })}
             disabled={!!loading}
           >
             <PlusCircle className="h-4 w-4 2xl:h-5 2xl:w-5" />
@@ -276,7 +276,7 @@ export default function EmployeesPage() {
         {loading ? (
           <EmployeeTableSkeleton />
         ) : (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="my-table-shadow border border-border bg-white rounded-lg overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-oatbeige/60">

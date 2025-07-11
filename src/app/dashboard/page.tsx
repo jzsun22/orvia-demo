@@ -11,7 +11,7 @@ import DashboardSkeleton from '@/components/dashboard/DashboardSkeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useScreenSize } from '@/hooks/useScreenSize';
-import { toZonedTime, formatInTimeZone, toDate } from 'date-fns-tz';
+import { toZonedTime, formatInTimeZone } from 'date-fns-tz';
 import { APP_TIMEZONE } from '@/lib/time';
 
 interface LocationCardData {
@@ -108,9 +108,9 @@ export default function Dashboard() {
               return (
 
                 /* Location cards */
-                <div key={locationData.location_id} className="bg-white/90 rounded-lg shadow-sm p-6 border-[2.25px] border-input flex flex-col h-full">
+                <div key={locationData.location_id} className="my-card-shadow bg-white/90 rounded-lg p-6 border border-border flex flex-col h-full">
                   <div className="flex items-start">
-                    <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-xl border-input border-2 flex items-center justify-center mr-4 mt-1">
+                    <div className="w-10 h-10 2xl:w-12 2xl:h-12 rounded-xl border-roseblush border-2 flex items-center justify-center mr-4 mt-1">
                       <MapPin className="w-5 h-5 2xl:w-6 2xl:h-6 text-accent" />
                     </div>
                     <div className="flex flex-col justify-start flex-1">
@@ -174,7 +174,7 @@ export default function Dashboard() {
             <div className="grid grid-cols-2 gap-6 2xl:gap-8 mt-2 items-stretch">
 
               {/* Birthday section */}
-              <div className="bg-white/90 rounded-xl p-6 border-[2.25px] border-input shadow-md h-full flex flex-col">
+              <div className="my-card-shadow bg-white/90 rounded-xl p-6 border border-border h-full flex flex-col">
                 <div className="flex items-center gap-2 2xl:gap-3 mb-4">
                   <div className="hidden 2xl:flex w-12 h-12 bg-roseblush/80 rounded-md 2xl:rounded-lg items-center justify-center">
                     <Cake className="w-6 h-6 text-white" />
@@ -233,7 +233,7 @@ export default function Dashboard() {
 
               {/* Staff stats by location */}
               <div className="h-full flex flex-col">
-                <div className="bg-white/90 rounded-xl p-6 border-[2.25px] border-input shadow-md h-full flex flex-col">
+                <div className="my-card-shadow bg-white/90 rounded-xl p-6 border border-border h-full flex flex-col">
                   <div className="flex items-center gap-2 2xl:gap-3 mb-4">
                     <div className="hidden 2xl:flex w-12 h-12 bg-[#AFCBBF] rounded-md 2xl:rounded-lg items-center justify-center">
                       <MapPinned className="w-6 h-6 text-white" />

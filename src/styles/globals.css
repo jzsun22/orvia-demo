@@ -117,3 +117,27 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--accent-foreground) / 0.6);
 } 
+
+.my-modal-shadow {
+  box-shadow: 0 2px 8px rgba(60, 50, 40, 0.11), 0 12px 32px rgba(60, 50, 40, 0.12);
+}
+
+.my-card-shadow {
+  box-shadow: 0 1.5px 6px rgba(60,50,40,0.07), 0 6px 18px rgba(60,50,40,0.06);
+}
+
+.my-table-shadow {
+  box-shadow: 0 2px 8px rgba(60,50,40,0.07), 0 1px 4px rgba(60,50,40,0.03);
+}
+
+.my-cta-shadow {
+  box-shadow: 0 1.5px 4px rgba(60, 50, 40, 0.17);
+  transition: box-shadow 0.13s ease-out;
+}
+
+.my-cta-shadow:hover,
+.my-cta-shadow:focus {
+  box-shadow: 0 3px 6px rgba(60, 50, 40, 0.20);
+}
+
+

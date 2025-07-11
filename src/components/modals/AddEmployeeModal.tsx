@@ -45,6 +45,7 @@ import {
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 
 // Define a type for the shape returned by the Supabase query
 interface FetchedLocationPosition {
@@ -52,6 +53,54 @@ interface FetchedLocationPosition {
   location_id: string;
   position: Position; // Nested position object
 }
+
+const AddEmployeeFormSkeleton = () => (
+    <div className="space-y-6">
+        <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-9 w-full" />
+            </div>
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-20" />
+                <Skeleton className="h-9 w-full" />
+            </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 2xl:gap-4">
+            <div className="space-y-2">
+                <Skeleton className="h-5 w-32" />
+                <Skeleton className="h-9 w-full" />
+            </div>
+        </div>
+        <div className="space-y-3">
+            <Skeleton className="h-5 w-24" />
+            <div className="grid grid-cols-2 gap-y-3 gap-x-2 mt-2">
+                <div className="flex items-center space-x-2">
+                    <Skeleton className="h-4 w-4 rounded-sm" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Skeleton className="h-4 w-4 rounded-sm" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+                <div className="flex items-center space-x-2">
+                    <Skeleton className="h-4 w-4 rounded-sm" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+            </div>
+        </div>
+        <div className="space-y-2">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-5 w-3/4 mt-2" />
+        </div>
+        <Separator className="my-0" />
+        <Skeleton className="h-10 w-full" />
+        <div className="flex justify-end gap-2 pt-4">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-36" />
+        </div>
+    </div>
+);
 
 const JOB_LEVELS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'];
 
@@ -269,192 +318,199 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
             <DialogHeader>
               <DialogTitle className="text-lg 2xl:text-xl font-manrope font-medium mb-4">Add New Employee</DialogTitle>
             </DialogHeader>
-            {error && <p className="text-sm text-errorred text-center mb-4">Error: {error}</p>}
-            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name" className="text-xs 2xl:text-sm">First Name</Label>
-                  <Input
-                    id="first_name"
-                    {...register('first_name')}
-                    placeholder="Enter first name"
-                    className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.first_name ? 'border-errorred' : '')}
-                  />
-                  {errors.first_name && (
-                    <p className="text-sm text-errorred">{errors.first_name.message}</p>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name" className="text-xs 2xl:text-sm">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    {...register('last_name')}
-                    placeholder="Enter last name"
-                    className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.last_name ? 'border-errorred' : '')}
-                  />
-                  {errors.last_name && (
-                    <p className="text-sm text-errorred">{errors.last_name.message}</p>
-                  )}
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-2 2xl:gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="preferred_name" className="text-xs 2xl:text-sm">Preferred Name (Optional)</Label>
-                  <Input
-                    id="preferred_name"
-                    {...register('preferred_name')}
-                    placeholder="Enter preferred name"
-                    className="border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-xs 2xl:text-sm">Locations</Label>
-                {loading && <p className="text-sm text-muted-foreground">Loading locations...</p>}
-                {!loading && allLocations.length === 0 && <p className="text-sm text-muted-foreground">No locations available.</p>}
-                {!loading && allLocations.length > 0 && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {allLocations.map((location: Location) => (
-                      <div key={location.id} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={`location-${location.id}`}
-                          value={location.id}
-                          checked={watchLocationIds?.includes(location.id)}
-                          onCheckedChange={(checked) => {
-                            const currentLocations = watchLocationIds || [];
-                            const newLocations = checked
-                              ? [...currentLocations, location.id]
-                              : currentLocations.filter((id) => id !== location.id);
-                            setValue('location_ids', newLocations, { shouldValidate: true });
-                          }}
-                        />
-                        <Label htmlFor={`location-${location.id}`} className="font-normal text-xs 2xl:text-sm">
-                          {formatLocationName(location.name)}
-                        </Label>
-                      </div>
-                    ))}
+            {loading ? (
+              <AddEmployeeFormSkeleton />
+            ) : (
+              <>
+                {error && <p className="text-sm text-errorred text-center mb-4">Error: {error}</p>}
+                <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="first_name" className="text-xs 2xl:text-sm">First Name</Label>
+                      <Input
+                        id="first_name"
+                        {...register('first_name')}
+                        placeholder="Enter first name"
+                        className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.first_name ? 'border-errorred' : '')}
+                      />
+                      {errors.first_name && (
+                        <p className="text-sm text-errorred">{errors.first_name.message}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="last_name" className="text-xs 2xl:text-sm">Last Name</Label>
+                      <Input
+                        id="last_name"
+                        {...register('last_name')}
+                        placeholder="Enter last name"
+                        className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.last_name ? 'border-errorred' : '')}
+                      />
+                      {errors.last_name && (
+                        <p className="text-sm text-errorred">{errors.last_name.message}</p>
+                      )}
+                    </div>
                   </div>
-                )}
-                {errors.location_ids && (
-                  <p className="text-sm text-errorred">{errors.location_ids.message}</p>
-                )}
-              </div>
 
-              <div className="space-y-2">
-                <Label className="text-xs 2xl:text-sm">Positions</Label>
-                {watchLocationIds?.length > 0 ? (
-                  filteredPositions.length > 0 ? (
-                    <div className="grid grid-cols-2 gap-2">
-                      {filteredPositions.map((position: Position) => (
-                        <div key={position.id} className="flex items-center space-x-2">
+                  <div className="grid grid-cols-2 gap-2 2xl:gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="preferred_name" className="text-xs 2xl:text-sm">Preferred Name (Optional)</Label>
+                      <Input
+                        id="preferred_name"
+                        {...register('preferred_name')}
+                        placeholder="Enter preferred name"
+                        className="border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs 2xl:text-sm">Locations</Label>
+                    {allLocations.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No locations available.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2">
+                        {allLocations.map((location: Location) => (
+                          <div key={location.id} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`location-${location.id}`}
+                              value={location.id}
+                              checked={watchLocationIds?.includes(location.id)}
+                              onCheckedChange={(checked) => {
+                                const currentLocations = watchLocationIds || [];
+                                const newLocations = checked
+                                  ? [...currentLocations, location.id]
+                                  : currentLocations.filter((id) => id !== location.id);
+                                setValue('location_ids', newLocations, { shouldValidate: true });
+                              }}
+                            />
+                            <Label htmlFor={`location-${location.id}`} className="font-normal text-xs 2xl:text-sm">
+                              {formatLocationName(location.name)}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {errors.location_ids && (
+                      <p className="text-sm text-errorred">{errors.location_ids.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs 2xl:text-sm">Positions</Label>
+                    {watchLocationIds?.length > 0 ? (
+                      filteredPositions.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {filteredPositions.map((position: Position) => (
+                            <div key={position.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`position-${position.id}`}
+                                value={position.id}
+                                checked={watch('positions')?.includes(position.id)}
+                                onCheckedChange={(checked) => {
+                                  const currentPositions = watch('positions') || [];
+                                  const newPositions = checked
+                                    ? [...currentPositions, position.id]
+                                    : currentPositions.filter((id) => id !== position.id);
+                                  setValue('positions', newPositions, { shouldValidate: true });
+                                }}
+                              />
+                              <Label htmlFor={`position-${position.id}`} className="font-normal text-xs 2xl:text-sm">
+                                {position.name}
+                              </Label>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] 2xl:text-sm text-muted-foreground">No positions available for the selected location(s).</p>
+                      )
+                    ) : (
+                      <p className="text-xs text-muted-foreground">Select at least one location to see available positions.</p>
+                    )}
+                    {errors.positions && (
+                      <p className="text-sm text-errorred">{errors.positions.message}</p>
+                    )}
+                  </div>
+
+                  <Separator className="my-0 bg-verylightbeige" />
+
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="item-1" className="border-b-0">
+                      <AccordionTrigger className="text-base 2xl:text-lg font-medium text-ashmocha pt-0 pb-4">Advanced Job Configurations</AccordionTrigger>
+                      <AccordionContent>
+                        <div className="grid grid-cols-2 gap-4 pt-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="preferred_hours_per_week" className="text-xs 2xl:text-sm">Preferred hours per week</Label>
+                            <Input
+                              id="preferred_hours_per_week"
+                              type="number"
+                              min="0"
+                              max="40"
+                              placeholder="optional"
+                              {...register('preferred_hours_per_week')}
+                              className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.preferred_hours_per_week ? 'border-errorred' : '')}
+                            />
+                          </div>
+
+
+                          <div className="space-y-2">
+                            <Label htmlFor="job_level" className="text-xs 2xl:text-sm">Job Level</Label>
+                            <Select
+                              onValueChange={(value) => {
+                                if (JOB_LEVELS.includes(value as JobLevel)) {
+                                  setValue('job_level', value as JobLevel);
+                                }
+                              }}
+                              defaultValue="L1"
+                            >
+                              <SelectTrigger className={errors.job_level ? 'border-errorred' : ''}>
+                                <SelectValue placeholder="Select a job level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {JOB_LEVELS.map((level) => (
+                                  <SelectItem key={level} value={level}>
+                                    {level}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {errors.job_level && (
+                              <p className="text-sm text-errorred">{errors.job_level.message}</p>
+                            )}
+                          </div>
+                        </div>
+
+
+                        <div className="flex items-center space-x-2 pt-8 mb-2">
                           <Checkbox
-                            id={`position-${position.id}`}
-                            value={position.id}
-                            checked={watch('positions')?.includes(position.id)}
-                            onCheckedChange={(checked) => {
-                              const currentPositions = watch('positions') || [];
-                              const newPositions = checked
-                                ? [...currentPositions, position.id]
-                                : currentPositions.filter((id) => id !== position.id);
-                              setValue('positions', newPositions, { shouldValidate: true });
-                            }}
+                            id="is_lead"
+                            checked={watch('is_lead')}
+                            onCheckedChange={(checked) => setValue('is_lead', checked as boolean)}
                           />
-                          <Label htmlFor={`position-${position.id}`} className="font-normal text-xs 2xl:text-sm">
-                            {position.name}
+                          <Label htmlFor="is_lead" className="text-xs 2xl:text-sm font-normal">
+                            Can be assigned as Opening/Closing Lead
                           </Label>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-[11px] 2xl:text-sm text-muted-foreground">No positions available for the selected location(s).</p>
-                  )
-                ) : (
-                  <p className="text-xs text-muted-foreground">Select at least one location to see available positions.</p>
-                )}
-                {errors.positions && (
-                  <p className="text-sm text-errorred">{errors.positions.message}</p>
-                )}
-              </div>
 
-              <Separator className="my-0 bg-verylightbeige" />
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
 
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="item-1" className="border-b-0">
-                  <AccordionTrigger className="text-base 2xl:text-lg font-medium text-ashmocha pt-0 pb-4">Advanced Job Configurations</AccordionTrigger>
-                  <AccordionContent>
-                    <div className="grid grid-cols-2 gap-4 pt-2">
-                      <div className="space-y-2">
-                        <Label htmlFor="preferred_hours_per_week" className="text-xs 2xl:text-sm">Preferred hours per week</Label>
-                        <Input
-                          id="preferred_hours_per_week"
-                          type="number"
-                          min="0"
-                          max="40"
-                          placeholder="optional"
-                          {...register('preferred_hours_per_week')}
-                          className={cn("border border-input bg-white focus-visible:ring-1 focus-visible:ring-offset-0 transition-none shadow-none", errors.preferred_hours_per_week ? 'border-errorred' : '')}
-                        />
-                      </div>
-
-
-                      <div className="space-y-2">
-                        <Label htmlFor="job_level" className="text-xs 2xl:text-sm">Job Level</Label>
-                        <Select
-                          onValueChange={(value) => {
-                            if (JOB_LEVELS.includes(value as JobLevel)) {
-                              setValue('job_level', value as JobLevel);
-                            }
-                          }}
-                          defaultValue="L1"
-                        >
-                          <SelectTrigger className={errors.job_level ? 'border-errorred' : ''}>
-                            <SelectValue placeholder="Select a job level" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {JOB_LEVELS.map((level) => (
-                              <SelectItem key={level} value={level}>
-                                {level}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {errors.job_level && (
-                          <p className="text-sm text-errorred">{errors.job_level.message}</p>
-                        )}
-                      </div>
-                    </div>
-
-
-                    <div className="flex items-center space-x-2 pt-8 mb-2">
-                      <Checkbox
-                        id="is_lead"
-                        checked={watch('is_lead')}
-                        onCheckedChange={(checked) => setValue('is_lead', checked as boolean)}
-                      />
-                      <Label htmlFor="is_lead" className="text-xs 2xl:text-sm font-normal">
-                        Can be assigned as Opening/Closing Lead
-                      </Label>
-                    </div>
-
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
-
-              <DialogFooter className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleClose}
-                  disabled={loading}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={loading}>
-                  {loading ? 'Adding...' : 'Add Employee'}
-                </Button>
-              </DialogFooter>
-            </form>
+                  <DialogFooter className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleClose}
+                      disabled={loading}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading ? 'Adding...' : 'Add Employee'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </>
+            )}
           </div>
         </ScrollArea>
         <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>

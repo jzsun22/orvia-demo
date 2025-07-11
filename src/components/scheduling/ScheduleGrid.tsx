@@ -2,8 +2,8 @@ import React from "react";
 import { Edit3 } from 'lucide-react';
 import { prefetchEligibleWorkers } from '@/hooks/useEligibleWorkers';
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { addDays, format } from 'date-fns';
-import { toDate, formatInTimeZone } from 'date-fns-tz';
+import { addDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
 import { APP_TIMEZONE, formatTime12hr } from "@/lib/time";
 
 interface Worker {
@@ -572,7 +572,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
     if (isSideBySideItem) {
       return (
         <div key={roleName} className={`${layoutClass}`}>
-          <div className="border rounded-lg bg-white shadow-md overflow-hidden">
+          <div className="border rounded-lg bg-white my-table-shadow overflow-hidden">
             {tableItself}
           </div>
         </div>
@@ -581,7 +581,7 @@ const ScheduleGrid: React.FC<ScheduleGridProps> = ({ weekStart, scheduledShifts,
 
     return (
       <div key={roleName} className={`${layoutClass}`}>
-        <ScrollArea className="border rounded-lg bg-white shadow-md">
+        <ScrollArea className="border rounded-lg bg-white my-table-shadow">
           {tableItself}
           <ScrollBar orientation="horizontal" />
         </ScrollArea>

@@ -232,12 +232,12 @@ const SchedulePage = () => {
         </div>
         <div className="flex items-center space-x-4">
           <ButtonWrapper isDisabled={editButtonDisabled} showTooltip={isPastWeek && editButtonDisabled} tooltipText={pastWeekTooltipContent}>
-            <Button onClick={handleToggleEditMode} variant="outline" className="h-8 text-[13px] 2xl:h-9 2xl:text-sm" disabled={editButtonDisabled} >
+            <Button onClick={handleToggleEditMode} variant="outline" className="h-8 text-[13px] 2xl:h-9 2xl:text-sm shadow-sm transition-shadow hover:shadow" disabled={editButtonDisabled} >
               {editMode ? 'View Mode' : 'Edit Schedule'}
             </Button>
           </ButtonWrapper>
           <ButtonWrapper isDisabled={generateButtonDisabled} showTooltip={isPastWeek && generateButtonDisabled} tooltipText={pastWeekTooltipContent}>
-            <Button onClick={handleGenerateSchedule} disabled={generateButtonDisabled} className="relative h-8 text-[13px] 2xl:h-9 2xl:text-sm">
+            <Button onClick={handleGenerateSchedule} disabled={generateButtonDisabled} className="my-cta-shadow relative h-8 text-[13px] 2xl:h-9 2xl:text-sm">
               {isGenerating && (
                 <span className="absolute inset-0 flex items-center justify-center bg-white/60 z-10">
                   <span className="animate-spin w-6 h-6 border-4 border-primary border-t-transparent rounded-full" />

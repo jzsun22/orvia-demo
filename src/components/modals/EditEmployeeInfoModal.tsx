@@ -20,7 +20,6 @@ import { supabase } from '@/lib/supabase/client';
 import { JobLevel } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { Switch } from '@/components/ui/switch';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { CalendarIcon } from 'lucide-react';
 import {
@@ -178,8 +177,8 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
       onOpenChange={handleClose}
       isDismissable={true}
     >
-      <ModalOverlay className="fixed inset-0 z-50 bg-black/80 data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0" />
-      <Dialog className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-0 border-[1.5px] border-verylightbeige shadow-lg data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:slide-in-from-bottom-4 data-[entering]:zoom-in-95 data-[exiting]:slide-out-to-bottom-4 data-[exiting]:zoom-out-95 overflow-hidden">
+      <ModalOverlay className="fixed inset-0 z-50 bg-[rgb(40,30,22)]/[0.22] backdrop-blur-sm data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:fade-in-0 data-[exiting]:fade-out-0" />
+      <Dialog className="my-modal-shadow fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg bg-background p-0 border-[1.5px] border-verylightbeige data-[entering]:animate-in data-[exiting]:animate-out data-[entering]:slide-in-from-bottom-4 data-[entering]:zoom-in-95 data-[exiting]:slide-out-to-bottom-4 data-[exiting]:zoom-out-95 overflow-hidden">
         <div className="custom-scrollbar max-h-[380px] p-8 2xl:p-6 xl:max-h-[600px] 2xl:max-h-full overflow-y-auto">
           <Heading
             className="text-lg 2xl:text-xl font-manrope font-medium mb-4">Edit Personal Information
