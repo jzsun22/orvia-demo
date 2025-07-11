@@ -14,7 +14,7 @@ export default function ResponsiveGuard({ children }: { children: React.ReactNod
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="max-w-md mx-auto p-8 rounded-lg shadow-lg border border-roseblush bg-roseblush/10 text-center">
           <h1 className="text-base font-semibold mb-4 text-charcoalcocoa">You found the tiny-screen trapdoor!</h1>
-          <p className="text-charcoalcocoa text-sm">Ibuilt this just for laptops -- come back with a bigger screen and I'll show you around. (๑˃̵ᴗ˂̵)</p>
+          <p className="text-charcoalcocoa text-sm">I built this just for laptops -- come back with a bigger screen and I'll show you around. (๑˃̵ᴗ˂̵)</p>
         </div>
       </div>
     );
