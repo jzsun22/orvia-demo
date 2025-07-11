@@ -132,7 +132,7 @@ export function SidebarNav() {
           const linkClasses = cn(
             "group flex items-center rounded-xl px-4 py-3 gap-1 lg:text-xs 2xl:text-sm font-semibold transition-all duration-200",
             isActive
-              ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
+              ? "bg-roseblush/80 text-charcoalcocoa my-nav-shadow"
               : "text-charcoalcocoa hover:bg-lavendercream"
           );
 
@@ -166,7 +166,7 @@ export function SidebarNav() {
             className={cn(
               "group flex w-full items-center rounded-xl px-4 py-3 gap-1 text-left lg:text-xs 2xl:text-sm font-semibold transition-all duration-200", 
               pathname.startsWith("/schedule")
-                ? "bg-roseblush/80 text-charcoalcocoa shadow-md"
+                ? "bg-roseblush/80 text-charcoalcocoa my-nav-shadow"
                 : "text-charcoalcocoa hover:bg-lavendercream transition-colors duration-200",
               isLoadingLocations && "cursor-not-allowed opacity-50"
             )}

@@ -140,4 +140,12 @@
   box-shadow: 0 3px 6px rgba(60, 50, 40, 0.20);
 }
 
+.my-nav-shadow {
+  box-shadow: 0 1.5px 4px rgba(60,50,40,0.15);
+  transition: box-shadow 0.13s ease-in-out;
+}
 
+.my-nav-shadow:hover,
+.my-nav-shadow:focus {
+  box-shadow: 0 3px 6px rgba(60,50,40,0.20);
+}
