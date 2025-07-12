@@ -78,7 +78,13 @@ export async function middleware(req: NextRequest) {
       const redirectResponse = NextResponse.redirect(
         new URL('/login?reason=session-expired', req.url)
       );
-      // Clear the cookie on the timeout redirect
+      
+      // Copy Supabase auth cookies to the redirect response
+      response.cookies.getAll().forEach((cookie) => {
+        redirectResponse.cookies.set(cookie);
+      });
+
+      // Clear the activity cookie on the timeout redirect
       redirectResponse.cookies.set({
         name: LAST_ACTIVITY_COOKIE,
         value: '',
