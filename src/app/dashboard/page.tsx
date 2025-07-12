@@ -211,11 +211,11 @@ export default function Dashboard() {
                   {!birthdaysLoading && birthdays && birthdays.length > 0 ? (
                     birthdays.map((worker: any) => (
                       <li key={worker.id} className="flex items-center justify-between pt-1">
-                        <span className="font-semibold text-sm text-charcoalcocoa">
+                        <span className={`text-sm text-charcoalcocoa ${worker.isToday ? 'font-bold' : 'font-semibold'}`}>
                           {worker.preferred_name || worker.first_name} {worker.last_name}
                         </span>
-                        <span className="text-sm text-deeproseblush">
-                          {worker.isToday ? 'today' : worker.dayOfWeek}
+                        <span className={`text-sm text-deeproseblush ${worker.isToday ? 'font-bold' : ''}`}>
+                          {worker.isToday ? 'Today' : worker.dayOfWeek}
                           {' '}
                           ({worker.birthdayThisYear ? `${formatInTimeZone(worker.birthdayThisYear, APP_TIMEZONE, 'MM/dd')}` : ''})
                         </span>
