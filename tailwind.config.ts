@@ -76,6 +76,9 @@ const config = {
   				'sans-serif'
   			]
   		},
+		transitionTimingFunction: {
+			'ease': 'ease',
+		},
   		keyframes: {
   			'accordion-down': {
   				from: {

@@ -118,6 +118,7 @@
   background: hsl(var(--accent-foreground) / 0.6);
 } 
 
+/* Custom Shadows */
 .my-modal-shadow {
   box-shadow: 0 2px 8px rgba(60, 50, 40, 0.11), 0 12px 32px rgba(60, 50, 40, 0.12);
 }
@@ -148,4 +149,27 @@
 .my-nav-shadow:hover,
 .my-nav-shadow:focus {
   box-shadow: 0 3px 6px rgba(60,50,40,0.20);
+}
+
+/* Custom Animations */
+.card-animated {
+  transition: 
+    box-shadow 0.15s ease-in-out, 
+    transform 0.15s ease-in-out;
+}
+
+.card-animated:hover {
+  box-shadow: 0 2px 8px rgba(60,50,40,0.09), 0 7px 20px rgba(60,50,40,0.08);
+  transform: translateY(-6px);
+}
+
+.info-card-animated {
+  transition: 
+  box-shadow 0.15s ease-in-out, 
+  transform 0.15s ease-in-out;
+}
+
+.info-card-animated:hover {
+  box-shadow: 0 2px 8px rgba(60,50,40,0.09), 0 7px 20px rgba(60,50,40,0.08);
+  transform: scale(1.015);
 }
