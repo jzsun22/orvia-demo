@@ -23,7 +23,7 @@ import { Loader2, XCircle } from 'lucide-react'
 import { WorkerSelectorDropdown } from '@/components/select/WorkerSelectorDropdown'
 import type { ShiftClickContext } from '@/components/scheduling/ScheduleGrid'
 import { supabase } from '@/lib/supabase/client'
-import { Input } from '@/components/ui/input'
+import { TimePickerInput } from '@/components/ui/TimePicker';
 import { useAppToast } from "@/lib/toast-service";
 import { formatInTimeZone } from 'date-fns-tz';
 import { capitalizeWords, formatLocationName } from '@/lib/utils';
@@ -516,44 +516,43 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           </p>
         )}
         {assignment && assignment.workers && !isPrepBaristaShift && ( // Hide time inputs for Prep Barista
-          <div className="flex gap-2 mt-2 items-start">
-            <div className="flex flex-col">
+          <div className="flex items-end gap-4 mt-2">
+            <div className="flex flex-col w-[112px] 2xl:w-[116px]">
               <label className="block text-xs font-medium mb-1" htmlFor="primary-assigned-start">Start</label>
-              <Input
+              <TimePickerInput
                 id="primary-assigned-start"
-                type="time"
-                value={assignment.assigned_start || ''} // Use empty string if null for input value
-                onChange={e => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_start', e.target.value)}
-                className="text-xs 2xl:text-sm w-[112px] 2xl:w-[116px]"
-                step="300"
+                value={assignment.assigned_start || undefined}
+                onChange={value => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_start', value)}
+                className="text-xs 2xl:text-sm w-full"
               />
-              <div className="min-h-[1.25rem] mt-1">
-                {timeValidationErrors.primary_start && <p className="text-xs text-errorred">{timeValidationErrors.primary_start}</p>}
+              <div className="h-6 pt-1 pl-1">
+                <p className="text-xs text-errorred whitespace-nowrap">{timeValidationErrors.primary_start || ''}</p>
               </div>
             </div>
-            <div className="flex flex-col">
+            <div className="flex flex-col w-[112px] 2xl:w-[116px]">
               <label className="block text-xs font-medium mb-1" htmlFor="primary-assigned-end">End</label>
-              <Input
+              <TimePickerInput
                 id="primary-assigned-end"
-                type="time"
-                value={assignment.assigned_end || ''} // Use empty string if null for input value
-                onChange={e => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_end', e.target.value)}
-                className="text-xs 2xl:text-sm w-[112px] 2xl:w-[116px]"
-                step="300"
+                value={assignment.assigned_end || undefined}
+                onChange={value => handleAssignmentTimeChange(primaryAssignmentType, 'assigned_end', value)}
+                className="text-xs 2xl:text-sm w-full"
               />
-              <div className="min-h-[1.25rem] mt-1">
-                {timeValidationErrors.primary_end && <p className="text-xs text-errorred">{timeValidationErrors.primary_end}</p>}
+              <div className="h-6 pt-1 pl-1">
+                <p className="text-xs text-errorred whitespace-nowrap">{timeValidationErrors.primary_end || ''}</p>
               </div>
             </div>
             {showResetButton && (
-              <Button
-                variant="link"
-                size="sm"
-                onClick={() => handleResetAssignmentTimes(primaryAssignmentType)}
-                className="h-9 px-2 text-xs text-ashmocha hover:text-[#655D59] self-end mb-[1.25rem]"
-              >
-                Reset Times
-              </Button>
+              <div className="flex flex-col">
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={() => handleResetAssignmentTimes(primaryAssignmentType)}
+                  className="h-9 px-2 text-ashmocha hover:text-[#655D59]"
+                >
+                  Reset Times
+                </Button>
+                <div className="h-6 pt-1" />
+              </div>
             )}
           </div>
         )}
@@ -599,49 +598,46 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
             />
             {assignment && assignment.workers && ( // Hide time inputs for Prep Barista (already handled by function return)
               <>
-                <p className="text-xs text-muted-foreground ml-1">
-                  {assignment.is_manual_override && assignment.assigned_start && assignment.assigned_end
-                    ? `${formatWorkerName(assignment.workers)} (${formatTime12hr(assignment.assigned_start)} - ${formatTime12hr(assignment.assigned_end)})`
-                    : formatWorkerName(assignment.workers)}
+                <p className="mt-2 text-sm text-gray-800">
+                  Assigned: <span className="font-semibold">{assignment.workers.preferred_name || `${assignment.workers.first_name} ${assignment.workers.last_name}`}</span>
                 </p>
-                <div className="flex gap-2 mt-2 items-start">
-                  <div className="flex flex-col">
+                <div className="flex items-end gap-2 mt-2">
+                  <div className="flex flex-col w-28">
                     <label className="block text-xs font-medium mb-1" htmlFor="training-assigned-start">Start</label>
-                    <Input
+                    <TimePickerInput
                       id="training-assigned-start"
-                      type="time"
-                      value={assignment.assigned_start || ''} // Use empty string if null for input value
-                      onChange={e => handleAssignmentTimeChange('training', 'assigned_start', e.target.value)}
-                      className="w-28"
-                      step="300"
+                      value={assignment.assigned_start || undefined}
+                      onChange={value => handleAssignmentTimeChange('training', 'assigned_start', value)}
+                      className="w-full"
                     />
-                    <div className="min-h-[1.25rem] mt-1">
-                      {timeValidationErrors.training_start && <p className="text-xs text-errorred">{timeValidationErrors.training_start}</p>}
+                    <div className="h-6 pt-1">
+                      <p className="text-xs text-red-500 whitespace-nowrap">{timeValidationErrors.training_start || ''}</p>
                     </div>
                   </div>
-                  <div className="flex flex-col">
+                  <div className="flex flex-col w-28">
                     <label className="block text-xs font-medium mb-1" htmlFor="training-assigned-end">End</label>
-                    <Input
+                    <TimePickerInput
                       id="training-assigned-end"
-                      type="time"
-                      value={assignment.assigned_end || ''} // Use empty string if null for input value
-                      onChange={e => handleAssignmentTimeChange('training', 'assigned_end', e.target.value)}
-                      className="w-28"
-                      step="300"
+                      value={assignment.assigned_end || undefined}
+                      onChange={value => handleAssignmentTimeChange('training', 'assigned_end', value)}
+                      className="w-full"
                     />
-                    <div className="min-h-[1.25rem] mt-1">
-                      {timeValidationErrors.training_end && <p className="text-xs text-errorred">{timeValidationErrors.training_end}</p>}
+                    <div className="h-6 pt-1">
+                      <p className="text-xs text-red-500 whitespace-nowrap">{timeValidationErrors.training_end || ''}</p>
                     </div>
                   </div>
                   {showResetButton && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      onClick={() => handleResetAssignmentTimes('training')}
-                      className="h-9 px-2 text-xs text-ashmocha hover:text-[#655D59] self-end mb-[1.25rem]"
-                    >
-                      Reset Times
-                    </Button>
+                    <div className="flex flex-col">
+                      <Button
+                        variant="link"
+                        size="sm"
+                        onClick={() => handleResetAssignmentTimes('training')}
+                        className="h-9 px-2 text-xs text-ashmocha hover:text-[#655D59]"
+                      >
+                        Reset Times
+                      </Button>
+                      <div className="h-6 pt-1" />
+                    </div>
                   )}
                 </div>
               </>
