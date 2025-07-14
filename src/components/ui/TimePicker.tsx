@@ -262,86 +262,6 @@ const TimePickerInput = React.forwardRef<
     setIsPopoverOpen(false) // Close popover on change
   }
 
-  // When user types in the input
-  const handleDisplayChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // console.log("TimePickerInput handleDisplayChange: e.target.value", e.target.value);
-    setDisplayValue(e.target.value)
-  }
-
-  const handleBlur = () => {
-    // console.log("TimePickerInput handleBlur: displayValue", displayValue);
-    if (displayValue) {
-      const parsed = parseTime(displayValue)
-      // console.log("TimePickerInput handleBlur: parsed time", parsed);
-      if (parsed) {
-        onChange(dateToTimeString(parsed))
-        setDate(parsed)
-        // Set display value to formatted 12hr string after successful parse
-        setDisplayValue(
-          parsed.toLocaleTimeString('en-US', {
-            hour: 'numeric',
-            minute: '2-digit',
-            hour12: true,
-          }),
-        )
-      } else {
-        // If blur and cannot parse, revert to last valid state or clear
-        // This might be too aggressive; consider user experience.
-        // For now, if invalid, try to revert to the last valid `value` prop if it exists.
-        if (value) {
-          const lastValidDate = stringToDate(value)
-          setDate(lastValidDate)
-          setDisplayValue(
-            lastValidDate
-              ? lastValidDate.toLocaleTimeString('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                })
-              : '',
-          )
-        } else {
-          setDate(undefined)
-          setDisplayValue('')
-        }
-      }
-    } else {
-      // If displayValue is empty, clear the time
-      onChange('')
-      setDate(undefined)
-    }
-  }
-
-  const parseTime = (timeStr: string): Date | null => {
-    const now = new Date()
-    // 1. Try parsing "h:mm a" or "hh:mm a"
-    let match = timeStr.match(/(\d{1,2}):(\d{2})\s*(am|pm)/i)
-    if (match) {
-      let [_, hourStr, minuteStr, period] = match
-      let hour = parseInt(hourStr, 10)
-      const minute = parseInt(minuteStr, 10)
-
-      if (period.toLowerCase() === 'pm' && hour < 12) {
-        hour += 12
-      }
-      if (period.toLowerCase() === 'am' && hour === 12) {
-        hour = 0
-      }
-      now.setHours(hour, minute, 0, 0)
-      return now
-    }
-
-    // 2. Try parsing "HH:mm"
-    match = timeStr.match(/^(\d{1,2}):(\d{2})$/)
-    if (match) {
-      const [_, hourStr, minuteStr] = match
-      now.setHours(parseInt(hourStr, 10), parseInt(minuteStr, 10), 0, 0)
-      return now
-    }
-
-    return null
-  }
-
   return (
     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
       <PopoverTrigger asChild>
@@ -349,9 +269,8 @@ const TimePickerInput = React.forwardRef<
           <Input
             ref={ref}
             value={displayValue}
-            onChange={handleDisplayChange}
-            onBlur={handleBlur}
-            className="pr-8" // Make space for the icon
+            readOnly
+            className="pr-8 focus-visible:ring-offset-0 focus:ring-offset-0 focus-visible:ring-1 focus:ring-1 cursor-pointer" // Make space for the icon
             {...props}
           />
           <div className="absolute right-2 top-1/2 -translate-y-1/2">
@@ -368,4 +287,4 @@ const TimePickerInput = React.forwardRef<
 
 TimePickerInput.displayName = 'TimePickerInput'
 
-export { TimePicker, TimePickerInput } 
+export { TimePicker, TimePickerInput }

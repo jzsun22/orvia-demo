@@ -280,19 +280,23 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     const originalStartTime = shiftDetails.scheduledShift.start_time;
     const originalEndTime = shiftDetails.scheduledShift.end_time;
 
-    if (field === 'assigned_start' && value < originalStartTime) {
+    // Time strings from the picker might be 'HH:mm', while from DB they are 'HH:mm:ss'.
+    // Normalize picker value to ensure correct string comparison.
+    const normalizedValue = value.length === 5 ? `${value}:00` : value;
+
+    if (field === 'assigned_start' && normalizedValue < originalStartTime) {
       return `Start cannot be before ${formatTime12hr(originalStartTime)}.`;
     }
-    if (field === 'assigned_end' && value > originalEndTime) {
+    if (field === 'assigned_end' && normalizedValue > originalEndTime) {
       return `End cannot be after ${formatTime12hr(originalEndTime)}.`;
     }
 
     const currentAssignment = currentDrafts.find(a => a.assignment_type === assignmentType);
     if (currentAssignment) {
-      const checkStart = field === 'assigned_start' ? value : currentAssignment.assigned_start;
-      const checkEnd = field === 'assigned_end' ? value : currentAssignment.assigned_end;
+      const checkStart = field === 'assigned_start' ? normalizedValue : (currentAssignment.assigned_start || '').length === 5 ? `${currentAssignment.assigned_start}:00` : currentAssignment.assigned_start;
+      const checkEnd = field === 'assigned_end' ? normalizedValue : (currentAssignment.assigned_end || '').length === 5 ? `${currentAssignment.assigned_end}:00` : currentAssignment.assigned_end;
 
-      if (checkStart && checkEnd && checkStart > checkEnd) {
+      if (checkStart && checkEnd && checkStart >= checkEnd) {
         return field === 'assigned_start' ? 'Start after end.' : 'End before start.';
       }
     }
@@ -695,7 +699,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
         newTimeValidationErrors.primary_end = 'Invalid format (HH:mm)';
         isValid = false;
       }
-      if (start && end && start >= end) {
+      if (start && end && start > end) {
         newTimeValidationErrors.primary_end = 'End time must be after start';
         isValid = false;
       }
@@ -711,7 +715,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
             newTimeValidationErrors.training_end = 'Invalid format (HH:mm)';
             isValid = false;
         }
-        if (start && end && start >= end) {
+        if (start && end && start > end) {
             newTimeValidationErrors.training_end = 'End time must be after start';
             isValid = false;
         }
