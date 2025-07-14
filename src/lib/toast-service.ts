@@ -1,7 +1,6 @@
 import { useToast } from "@/components/ui/use-toast";
 
 const DEFAULT_SUCCESS_DURATION = 3000; // 3 seconds
-const DEFAULT_INFO_DURATION = 2000;    // 2 seconds, slightly shorter for brief info
 
 export function useAppToast() {
   const { toast } = useToast();
@@ -16,12 +15,13 @@ export function useAppToast() {
     });
   };
 
-  const showInfoToast = (message: string, duration: number = DEFAULT_INFO_DURATION) => {
+  const showInfoToast = (message: string) => {
     toast({
       // Omitting title for info as well
       // title: "Info",
       description: message,
-      duration: duration,
+      duration: Infinity,
+      className: "bg-background text-charcoalcocoa"
     });
   };
 

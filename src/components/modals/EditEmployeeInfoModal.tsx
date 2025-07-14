@@ -59,7 +59,7 @@ const JOB_LEVELS: JobLevel[] = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7'];
 const GENDERS: ('male' | 'female' | 'non-binary')[] = ['male', 'female', 'non-binary'];
 
 export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: EditEmployeeInfoModalProps) {
-  const { showSuccessToast } = useAppToast();
+  const { showSuccessToast, showInfoToast } = useAppToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -130,7 +130,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
 
   const handleDeleteClick = () => {
     // For demo purposes, we skip the confirmation dialog and show a toast directly.
-    showSuccessToast('Employee deletion is disabled here to keep the demo functional for everyone. Gotta keep the place intact :)');
+    showInfoToast('Employee deletion is disabled here to keep the demo functional for everyone. Gotta keep the place intact :)');
     // Original implementation:
     // setShowDeleteDialog(true);
   };
