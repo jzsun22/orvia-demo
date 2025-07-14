@@ -89,7 +89,7 @@ For questions or feedback, connect via [LinkedIn](https://www.linkedin.com/in/jz
 
 ---
 
-> And last but not least --
+And last but not least --
 
 ## 🙌 Thanks To
 - Cursor for making coding possible, Gemini for doing all the dirty work, and ChatGPT for writing all the long docs I didn’t want to write  
