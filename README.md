@@ -84,5 +84,16 @@ Orvia is currently in its MVP phase with active development. Though tailored for
 
 ## 📬 Contact
 
-Created by **Jocelyn** — UX/Product Designer & Indie Developer.  
+Created by [**Jocelyn**](https://jzsun.me) — UX/Product Designer & Indie Developer.  
 For questions or feedback, connect via [LinkedIn](https://www.linkedin.com/in/jzsun2).
+
+---
+
+> And last but not least --
+
+## 🙌 Thanks To
+- Cursor for making coding possible, Gemini for doing all the dirty work, and ChatGPT for writing all the long docs I didn’t want to write  
+- 👑 and 🍉 for being my honest reviewers and testers  
+- 🌻 for being my inspiration  
+- My neo ergo for putting up with my typing force  
+- And myself, for actually putting this together ✨
