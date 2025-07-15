@@ -1,5 +1,25 @@
 # 🟢 Changelog — Orvia
 
+## [1.0.4] 
+
+### ✅ Implemented
+- UI improvement:
+    - better animations
+    - added a trapdoor for mobile access
+
+### 🔧 In progress
+- Keep fine-tuning UI:
+    - Animations
+    - Toast messages
+
+### 📋 TODO
+- i18n support: Chinese
+- UI: dark mode support
+- Exporting schedule to image or pdf
+
+
+---
+
 ## [1.0.3] — 2025-06-28
 
 ### ✅ Implemented
@@ -91,6 +111,7 @@
 
 ## 🧩 Known Behaviors
 - If a worker is active in multiple locations, at least one location should use recurring shifts for better load balancing
+- Minor compatibility issue between a RAC component (EditEmployeeInfoModal) and the shadcn library 
 
 ## 📍 Future Enhancements
 - Optional database type enforcement
