@@ -1,6 +1,6 @@
 # 🟢 Changelog — Orvia
 
-## [1.0.4] 
+## [1.0.4] — 2025-07-14
 
 ### ✅ Implemented
 - UI improvement:
