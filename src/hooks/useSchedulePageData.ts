@@ -1,5 +1,12 @@
 import useSWR from 'swr';
 import { supabase } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/database.types';
+type WorkerSummaryRow = Pick<Database['public']['Tables']['workers']['Row'], 'id' | 'first_name' | 'last_name' | 'preferred_name' | 'job_level'>;
+type LocationRow = Pick<Database['public']['Tables']['locations']['Row'], 'id' | 'name'>;
+type ShiftTemplateRow = Database['public']['Tables']['shift_templates']['Row'];
+type PositionSummaryRow = Pick<Database['public']['Tables']['positions']['Row'], 'id' | 'name'>;
+type ScheduledShiftRow = Pick<Database['public']['Tables']['scheduled_shifts']['Row'], 'id' | 'shift_date' | 'template_id' | 'start_time' | 'end_time' | 'is_recurring_generated'>;
+type ShiftAssignmentWithWorker = Pick<Database['public']['Tables']['shift_assignments']['Row'], 'scheduled_shift_id' | 'worker_id' | 'assignment_type' | 'is_manual_override' | 'assigned_start' | 'assigned_end'> & { workers: Pick<Database['public']['Tables']['workers']['Row'], 'id' | 'first_name' | 'last_name' | 'preferred_name' | 'job_level'> | null; };
 
 const PT_TIMEZONE = 'America/Los_Angeles';
 
@@ -69,7 +76,7 @@ const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): P
   // 1. Fetch Location
   const { data: location, error: locError } = await supabase
     .from("locations")
-    .select("id, name")
+    .select<'id, name', LocationRow>('id, name')
     .eq("name", locationSlug.toLowerCase().trim())
     .single();
   if (locError) throw new Error(locError.message);
@@ -77,9 +84,9 @@ const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): P
 
   // 2. Fetch Base Meta (workers, templates, positions)
   const [workersRes, templatesRes, positionsRes] = await Promise.all([
-    supabase.from("workers").select("id, first_name, last_name, preferred_name, job_level"),
-    supabase.from("shift_templates").select("*"),
-    supabase.from("positions").select("id, name"),
+    supabase.from("workers").select<'id, first_name, last_name, preferred_name, job_level', WorkerSummaryRow>('id, first_name, last_name, preferred_name, job_level'),
+    supabase.from("shift_templates").select<'*', ShiftTemplateRow>('*'),
+    supabase.from("positions").select<'id, name', PositionSummaryRow>('id, name'),
   ]);
   if (workersRes.error) throw new Error(workersRes.error.message);
   if (templatesRes.error) throw new Error(templatesRes.error.message);
@@ -99,7 +106,7 @@ const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): P
 
   const { data: allShiftsForDateRange, error: shiftsError } = await supabase
     .from("scheduled_shifts")
-    .select("id, shift_date, template_id, start_time, end_time, is_recurring_generated")
+    .select<'id, shift_date, template_id, start_time, end_time, is_recurring_generated', ScheduledShiftRow>('id, shift_date, template_id, start_time, end_time, is_recurring_generated')
     .gte("shift_date", startDateQueryStr).lte("shift_date", endDateQueryStr);
   if (shiftsError) throw new Error(shiftsError.message);
   if (!allShiftsForDateRange || allShiftsForDateRange.length === 0) {
@@ -115,13 +122,14 @@ const schedulePageFetcher = async ([locationSlug, weekStart]: [string, Date]): P
   }
 
   const shiftIds = relevantScheduledShifts.map(s => s.id);
-  const { data: assignmentsWithWorkers, error: assignmentsError } = await supabase.from('shift_assignments')
+  const { data: assignmentsData, error: assignmentsError } = await supabase.from('shift_assignments')
     .select(`scheduled_shift_id, worker_id, assignment_type, is_manual_override, assigned_start, assigned_end, workers (id, first_name, last_name, preferred_name, job_level)`)
     .in('scheduled_shift_id', shiftIds);
   if (assignmentsError) throw new Error(assignmentsError.message);
+  const assignmentsWithWorkers: ShiftAssignmentWithWorker[] = (assignmentsData ?? []) as ShiftAssignmentWithWorker[];
 
   const populatedShifts: ScheduledShiftForGrid[] = relevantScheduledShifts.map(shift => {
-    const shiftAssignments = assignmentsWithWorkers?.filter(a => a.scheduled_shift_id === shift.id) || [];
+    const shiftAssignments = assignmentsWithWorkers.filter(a => a.scheduled_shift_id === shift.id);
     let primaryAssignment = shiftAssignments.find(a => a.assignment_type === 'lead') || shiftAssignments.find(a => a.assignment_type === 'regular');
     let workerName, assignedWorkerId = null, assignedStartTime = null, assignedEndTime = null, isManualOverride = null, workerJobLevel = null;
     if (primaryAssignment?.workers) {
@@ -172,3 +180,9 @@ export const useSchedulePageData = (locationSlug: string | undefined | null, wee
       mutate,
     };
   }; 
+
+
+
+
+
+

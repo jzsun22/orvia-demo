@@ -1,4 +1,6 @@
 import { supabase } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/database.types';
+type ShiftTemplateIdRow = Pick<Database['public']['Tables']['shift_templates']['Row'], 'id'>;
 import { ScheduledShift, ShiftAssignment } from '@/lib/types';
 import { formatDateToYYYYMMDD } from './utils';
 
@@ -42,7 +44,7 @@ export async function saveSchedule(
         // --- Fetch Shift Template IDs for the location ---
         const { data: templatesForLocation, error: templatesError } = await supabase
             .from('shift_templates')
-            .select('id')
+            .select<'id', ShiftTemplateIdRow>('id')
             .eq('location_id', locationId);
 
         if (templatesError) {
@@ -167,3 +169,4 @@ export async function saveSchedule(
         throw error;
     }
 } 
+

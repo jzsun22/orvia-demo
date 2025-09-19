@@ -1,13 +1,15 @@
 import useSWR from 'swr';
-import type { Session } from '@supabase/supabase-js';
+import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { supabase } from '@/lib/supabase/client';
+import type { Database } from '@/lib/supabase/database.types';
+type WorkerIdRow = Pick<Database['public']['Tables']['workers']['Row'], 'id'>;
 import { fetchWorkers } from '@/lib/supabase';
 import type { DatabaseWorker, Location, Position } from '@/lib/types';
 
 // A specific fetcher for the manager's worker ID, which depends on the user session.
 const managerIdFetcher = async (key: string, userId: string) => {
   if (key !== 'managerId' || !userId) return null;
-  const { data, error } = await supabase.from('workers').select('id').eq('user_id', userId).single();
+  const { data, error } = await supabase.from('workers').select<'id', WorkerIdRow>('id').eq('user_id', userId).single();
   if (error) {
     console.warn("Could not find a manager worker for the current user.");
     return null;
@@ -16,7 +18,8 @@ const managerIdFetcher = async (key: string, userId: string) => {
 };
 
 export function useEmployeeData(session: Session | null) {
-  const { data: workers, error: workersError, isLoading: isWorkersLoading, mutate: mutateWorkers } = useSWR<DatabaseWorker[]>('workers', () => fetchWorkers(supabase));
+  const generalClient = supabase as unknown as SupabaseClient;
+  const { data: workers, error: workersError, isLoading: isWorkersLoading, mutate: mutateWorkers } = useSWR<DatabaseWorker[]>('workers', () => fetchWorkers(generalClient));
   
   const { data: allLocations, error: locationsError, isLoading: isLocationsLoading } = useSWR<Location[]>('locations', async () => {
     const { data, error } = await supabase.from('locations').select('id, name');
@@ -48,3 +51,6 @@ export function useEmployeeData(session: Session | null) {
     error,
   };
 } 
+
+
+

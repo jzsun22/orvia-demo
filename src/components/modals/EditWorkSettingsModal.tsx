@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { workSettingsSchema, type WorkSettingsFormData } from '@/lib/schemas/employee';
 import { supabase } from '@/lib/supabase/client';
+import type { Database, TablesInsert, TablesUpdate } from '@/lib/supabase/database.types';
 import { fetchAllLocations } from '@/lib/supabase';
 import { Location, Position } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
@@ -30,6 +31,11 @@ interface ExtendedWorker {
   positions: string[];
 }
 
+type WorkerUpdatePayload = TablesUpdate<'workers'>;
+type WorkerLocationIdRow = Pick<Database['public']['Tables']['worker_locations']['Row'], 'location_id'>;
+type WorkerPositionIdRow = Pick<Database['public']['Tables']['worker_positions']['Row'], 'position_id'>;
+type WorkerLocationInsert = TablesInsert<'worker_locations'>;
+type WorkerPositionInsert = TablesInsert<'worker_positions'>;
 interface EditWorkSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -61,7 +67,7 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
       setLoading(true);
       setError(null);
       try {
-        const locations = await fetchAllLocations(supabase);
+        const locations = await fetchAllLocations(supabase as any);
         setAllLocations(locations);
 
         const { data: locationPositionsData, error: lpError } = await supabase
@@ -117,27 +123,47 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
     setError(null);
 
     try {
-      await supabase.from('workers').update({ is_lead: data.is_lead }).eq('id', employee.id);
+      const workerUpdate: WorkerUpdatePayload = { is_lead: data.is_lead };
 
-      const { data: existingLocations } = await supabase.from('worker_locations').select('location_id').eq('worker_id', employee.id);
+      await supabase
+        .from('workers')
+        // Cast required due to Supabase update typings resolving to never after library upgrade.
+        .update(workerUpdate as never)
+        .eq('id', employee.id);
+
+      const { data: existingLocations } = await supabase.from('worker_locations').select<'location_id', WorkerLocationIdRow>('location_id').eq('worker_id', employee.id);
       const existingLocationIds = existingLocations?.map(loc => loc.location_id) || [];
       const locationsToAdd = data.location_ids.filter(id => !existingLocationIds.includes(id));
       const locationsToRemove = existingLocationIds.filter(id => !data.location_ids.includes(id));
 
       if (locationsToAdd.length > 0) {
-        await supabase.from('worker_locations').insert(locationsToAdd.map(location_id => ({ worker_id: employee.id, location_id })));
+        const locationInserts: WorkerLocationInsert[] = locationsToAdd.map((location_id) => ({
+          worker_id: employee.id,
+          location_id,
+        }));
+
+        await supabase
+          .from('worker_locations')
+          .insert(locationInserts as never);
       }
       if (locationsToRemove.length > 0) {
         await supabase.from('worker_locations').delete().eq('worker_id', employee.id).in('location_id', locationsToRemove);
       }
 
-      const { data: existingPositions } = await supabase.from('worker_positions').select('position_id').eq('worker_id', employee.id);
+      const { data: existingPositions } = await supabase.from('worker_positions').select<'position_id', WorkerPositionIdRow>('position_id').eq('worker_id', employee.id);
       const existingPositionIds = existingPositions?.map(p => p.position_id) || [];
       const positionsToAdd = data.positions.filter(id => !existingPositionIds.includes(id));
       const positionsToRemove = existingPositionIds.filter(id => !data.positions.includes(id));
 
       if (positionsToAdd.length > 0) {
-        await supabase.from('worker_positions').insert(positionsToAdd.map(position_id => ({ worker_id: employee.id, position_id })));
+        const positionInserts: WorkerPositionInsert[] = positionsToAdd.map((position_id) => ({
+          worker_id: employee.id,
+          position_id,
+        }));
+
+        await supabase
+          .from('worker_positions')
+          .insert(positionInserts as never);
       }
       if (positionsToRemove.length > 0) {
         await supabase.from('worker_positions').delete().eq('worker_id', employee.id).in('position_id', positionsToRemove);
@@ -268,3 +294,8 @@ export function EditWorkSettingsModal({ isOpen, onClose, onSuccess, employee }: 
     </Dialog>
   );
 } 
+
+
+
+
+

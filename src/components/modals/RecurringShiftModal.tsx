@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
+import type { Database, TablesInsert, TablesUpdate } from '@/lib/supabase/database.types';
 import { 
   Select, 
   SelectContent, 
@@ -43,6 +44,18 @@ interface RecurringShiftModalProps {
 }
 
 const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+type WorkerNameRow = Pick<Database['public']['Tables']['workers']['Row'], 'first_name'>;
+type WorkerLocationJoin = {
+  location: Pick<Database['public']['Tables']['locations']['Row'], 'id' | 'name'> | null;
+};
+type WorkerPositionJoin = {
+  position: Pick<Database['public']['Tables']['positions']['Row'], 'id' | 'name'> | null;
+};
+type LocationPositionRow = Pick<Database['public']['Tables']['location_positions']['Row'], 'position_id'>;
+type RecurringShiftRow = Database['public']['Tables']['recurring_shift_assignments']['Row'];
+type RecurringShiftInsert = TablesInsert<'recurring_shift_assignments'>;
+type RecurringShiftUpdate = TablesUpdate<'recurring_shift_assignments'>;
+type ShiftTemplateSelectionRow = Pick<Database['public']['Tables']['shift_templates']['Row'], 'id' | 'start_time' | 'end_time' | 'days_of_week' | 'lead_type'>;
 
 // Add this utility function at the top with other constants
 const capitalizeDay = (day: string) => {
@@ -125,7 +138,7 @@ export function RecurringShiftModal({
         // Fetch worker's first name for toast message
         const { data: workerData, error: workerError } = await supabase
           .from('workers')
-          .select('first_name')
+          .select<'first_name', WorkerNameRow>('first_name')
           .eq('id', employeeId)
           .single();
 
@@ -138,7 +151,7 @@ export function RecurringShiftModal({
         // Fetch worker-specific locations
         const { data: workerLocationsData, error: workerLocationsError } = await supabase
           .from('worker_locations')
-          .select('location:locations!inner(*)')
+          .select<'location:locations!inner(id, name)', WorkerLocationJoin>('location:locations!inner(id, name)')
           .eq('worker_id', employeeId);
 
         if (workerLocationsError) throw workerLocationsError;
@@ -155,7 +168,7 @@ export function RecurringShiftModal({
         // Fetch worker-specific positions
         const { data: workerPositionsData, error: workerPositionsError } = await supabase
           .from('worker_positions')
-          .select('position:positions!inner(id, name)')
+          .select<'position:positions!inner(id, name)', WorkerPositionJoin>('position:positions!inner(id, name)')
           .eq('worker_id', employeeId);
 
         if (workerPositionsError) throw workerPositionsError;
@@ -231,7 +244,7 @@ export function RecurringShiftModal({
       console.log('Fetching positions for location ID:', locationId);
       const { data: locationPositions, error: locationPositionsError } = await supabase
         .from('location_positions')
-        .select('position_id')
+        .select<'position_id', LocationPositionRow>('position_id')
         .eq('location_id', locationId);
 
       if (locationPositionsError) throw locationPositionsError;
@@ -268,7 +281,7 @@ export function RecurringShiftModal({
       // Query shift templates with the correct column names
       const { data, error } = await supabase
         .from('shift_templates')
-        .select('id, start_time, end_time, days_of_week, lead_type')
+        .select<'id, start_time, end_time, days_of_week, lead_type', ShiftTemplateSelectionRow>('id, start_time, end_time, days_of_week, lead_type')
         .eq('location_id', locationId)
         .eq('position_id', positionId);
 
@@ -359,7 +372,7 @@ export function RecurringShiftModal({
       return;
     }
 
-    const shiftDataToSave = {
+    const baseShiftPayload = {
       worker_id: employeeId,
       day_of_week: newShiftDay,
       location_id: locationId,
@@ -369,24 +382,28 @@ export function RecurringShiftModal({
       assignment_type: assignmentType,
     };
 
+    const updatePayload: RecurringShiftUpdate = baseShiftPayload;
+    const insertPayload: RecurringShiftInsert = baseShiftPayload;
+
     try {
-      let savedShiftResponse;
+      let savedShiftResponse: RecurringShiftRow | null = null;
       let savedShiftId = shift?.id;
 
       if (isEditing && shift?.id) {
         const { data, error } = await supabase
+        // Cast required due to Supabase update typings resolving to never after library upgrade.
           .from('recurring_shift_assignments')
-          .update(shiftDataToSave)
+          .update(updatePayload as never)
           .eq('id', shift.id)
-          .select()
+          .select<'*', RecurringShiftRow>('*')
           .single();
         if (error) throw error;
         savedShiftResponse = data;
       } else {
         const { data, error } = await supabase
           .from('recurring_shift_assignments')
-          .insert(shiftDataToSave)
-          .select()
+          .insert(insertPayload as never)
+          .select<'*', RecurringShiftRow>('*')
           .single();
         if (error) throw error;
         savedShiftResponse = data;
@@ -698,3 +715,18 @@ export function RecurringShiftModal({
     </Dialog>
   );
 } 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

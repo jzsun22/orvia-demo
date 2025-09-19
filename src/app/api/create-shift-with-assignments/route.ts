@@ -136,7 +136,7 @@ export async function POST(request: Request) {
       };
       const { data: newScheduledShift1, error: shiftError1 } = await supabase
         .from('scheduled_shifts')
-        .insert(shift1ToInsert)
+        .insert(shift1ToInsert as any)
         .select('id')
         .single<ScheduledShiftRow>();
 
@@ -156,7 +156,7 @@ export async function POST(request: Request) {
       };
       const { data: newScheduledShift2, error: shiftError2 } = await supabase
         .from('scheduled_shifts')
-        .insert(shift2ToInsert)
+        .insert(shift2ToInsert as any)
         .select('id')
         .single<ScheduledShiftRow>();
       
@@ -179,7 +179,7 @@ export async function POST(request: Request) {
       };
       const { data: newScheduledShift, error: shiftError } = await supabase
         .from('scheduled_shifts')
-        .insert(shiftToInsert)
+        .insert(shiftToInsert as any)
         .select('id')
         .single<ScheduledShiftRow>();
 

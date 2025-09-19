@@ -23,6 +23,7 @@ import { Loader2, XCircle } from 'lucide-react'
 import { WorkerSelectorDropdown } from '@/components/select/WorkerSelectorDropdown'
 import type { ShiftClickContext } from '@/components/scheduling/ScheduleGrid'
 import { supabase } from '@/lib/supabase/client'
+import type { Database } from '@/lib/supabase/database.types'
 import { TimePickerInput } from '@/components/ui/TimePicker';
 import { useAppToast } from "@/lib/toast-service";
 import { formatInTimeZone } from 'date-fns-tz';
@@ -34,6 +35,10 @@ import { APP_TIMEZONE, formatTime12hr } from '@/lib/time';
 const PREP_BARISTA_POSITION_ID = process.env.NEXT_PUBLIC_PREP_BARISTA_POSITION_ID;
 const PAIRED_TEMPLATE_ID_1 = process.env.NEXT_PUBLIC_PREP_BARISTA_TEMPLATE_1;
 const PAIRED_TEMPLATE_ID_2 = process.env.NEXT_PUBLIC_PREP_BARISTA_TEMPLATE_2;
+type PartnerShiftRow = Pick<Database['public']['Tables']['scheduled_shifts']['Row'], 'id' | 'end_time'>;
+type LocationNameRow = Pick<Database['public']['Tables']['locations']['Row'], 'name'>;
+type PositionNameRow = Pick<Database['public']['Tables']['positions']['Row'], 'name'>;
+type ShiftTemplateEndTimeRow = Pick<Database['public']['Tables']['shift_templates']['Row'], 'end_time'>;
 
 interface PairedShiftInfo {
   partnerShiftId: string;
@@ -124,7 +129,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
 
             const { data: partnerShift, error: partnerError } = await supabase
               .from('scheduled_shifts')
-              .select('id, end_time')
+              .select<'id, end_time', PartnerShiftRow>('id, end_time')
               .eq('shift_date', data.scheduledShift.shift_date)
               .eq('template_id', partnerTemplateId) 
               .neq('id', data.scheduledShift.id)
@@ -152,8 +157,8 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
 
         try {
           const [locationRes, positionRes] = await Promise.all([
-            supabase.from('locations').select('name').eq('id', shiftContext.locationId).single(),
-            supabase.from('positions').select('name').eq('id', shiftContext.positionId).single(),
+            supabase.from('locations').select<'name', LocationNameRow>('name').eq('id', shiftContext.locationId).single(),
+            supabase.from('positions').select<'name', PositionNameRow>('name').eq('id', shiftContext.positionId).single(),
           ]);
 
           if (locationRes.data?.name) {
@@ -219,7 +224,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
           const partnerTemplateId = shiftContext.templateId === PAIRED_TEMPLATE_ID_1 ? PAIRED_TEMPLATE_ID_2 : PAIRED_TEMPLATE_ID_1;
           const { data: partnerTemplate } = await supabase
             .from('shift_templates')
-            .select('end_time')
+            .select<'end_time', ShiftTemplateEndTimeRow>('end_time')
             .eq('id', partnerTemplateId)
             .single();
           if (partnerTemplate) {
@@ -898,3 +903,7 @@ export function EditShiftModal({ isOpen, onClose, shiftContext, onShiftUpdated }
     </Dialog>
   )
 } 
+
+
+
+

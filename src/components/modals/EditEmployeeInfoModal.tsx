@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { employeeInfoSchema, type EmployeeInfoFormData } from '@/lib/schemas/employee';
 import { supabase } from '@/lib/supabase/client';
+import type { TablesUpdate } from '@/lib/supabase/database.types';
 import { JobLevel } from '@/lib/types';
 import { useAppToast } from "@/lib/toast-service";
 import { Switch } from '@/components/ui/switch';
@@ -98,7 +99,7 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
 
     try {
       // Create an object with only the fields to update on the workers table
-      const workerUpdateData = {
+      const workerUpdateData: TablesUpdate<'workers'> = {
         first_name: data.first_name,
         last_name: data.last_name,
         preferred_name: data.preferred_name || null,
@@ -111,8 +112,9 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
 
       // Update worker
       const { error: workerError } = await supabase
+      // Cast required due to Supabase update typings resolving to never after library upgrade.
         .from('workers')
-        .update(workerUpdateData)
+        .update(workerUpdateData as never)
         .eq('id', employee.id);
 
       if (workerError) throw workerError;
@@ -386,3 +388,5 @@ export function EditEmployeeInfoModal({ isOpen, onClose, onSuccess, employee }: 
     </Modal>
   );
 } 
+
+

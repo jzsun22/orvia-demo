@@ -150,7 +150,7 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       setError(null);
       try {
         // 1. Fetch all locations
-        const locations = await fetchAllLocations(supabase);
+        const locations = await fetchAllLocations(supabase as any);
         setAllLocations(locations);
 
         // 2. Fetch all location-position mappings with position details
@@ -252,7 +252,7 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
           availability: {},
           preferred_hours_per_week: data.preferred_hours_per_week ?? null,
           inactive: data.inactive
-        }])
+        }] as any)
         .select()
         .single();
 
@@ -262,13 +262,13 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       // Insert worker positions
       if (data.positions.length > 0) {
         const workerPositions = data.positions.map(positionId => ({
-          worker_id: worker.id,
+          worker_id: (worker as any)?.id,
           position_id: positionId
         }));
 
         const { error: positionsError } = await supabase
           .from('worker_positions')
-          .insert(workerPositions);
+          .insert(workerPositions as any);
 
         if (positionsError) throw positionsError;
       }
@@ -276,13 +276,13 @@ export function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmployeeModa
       // Insert worker locations
       if (data.location_ids && data.location_ids.length > 0) { // Check if location_ids exists
         const workerLocations = data.location_ids.map(locationId => ({
-          worker_id: worker.id,
+          worker_id: (worker as any)?.id,
           location_id: locationId
         }));
 
         const { error: locationsError } = await supabase
           .from('worker_locations')
-          .insert(workerLocations);
+          .insert(workerLocations as any);
 
         if (locationsError) throw locationsError;
       }

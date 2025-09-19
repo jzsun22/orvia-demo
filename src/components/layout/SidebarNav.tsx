@@ -97,7 +97,7 @@ export function SidebarNav() {
         console.error("Error fetching worker details:", workerError)
         setUserName(user.email || "User") // Fallback to email or generic User
       } else if (workerData) {
-        setUserName(workerData.preferred_name || workerData.first_name || "User")
+        setUserName((workerData as any)?.preferred_name || (workerData as any)?.first_name || "User")
       } else {
         console.log("[SidebarNav] No workerData found, falling back to email/User for user.id:", user.id);
         setUserName(user.email || "User") // Fallback if no worker record found

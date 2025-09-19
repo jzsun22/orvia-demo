@@ -237,18 +237,19 @@ export const dashboardFetcher = async (
 }
 
 export function useDashboardData() {
+  const generalClient = supabase as unknown as SupabaseClient;
   const {
     data: locations,
     error,
     isLoading: locationsLoading,
-  } = useSWR('dashboardData', () => dashboardFetcher(supabase))
+  } = useSWR('dashboardData', () => dashboardFetcher(generalClient))
   const { data: birthdays, isLoading: birthdaysLoading } = useSWR(
     'dashboardBirthdays',
-    () => birthdayFetcher(supabase)
+    () => birthdayFetcher(generalClient)
   )
   const { data: staffStats, isLoading: staffStatsLoading } = useSWR(
     'dashboardStaffStats',
-    () => staffStatsFetcher(supabase)
+    () => staffStatsFetcher(generalClient)
   )
 
   return {
@@ -262,3 +263,5 @@ export function useDashboardData() {
     staffStatsLoading,
   }
 } 
+
+

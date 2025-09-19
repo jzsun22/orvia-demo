@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase/client';
+import type { Database, Json, TablesUpdate } from '@/lib/supabase/database.types';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info, Plus, Pencil, Trash2 } from 'lucide-react';
 import { RecurringShiftModal } from './RecurringShiftModal';
@@ -52,6 +53,20 @@ interface LocationHour {
   day_of_week: string;
   morning_cutoff: string | null;
 }
+
+type RelationRecord = { id: string | null; name: string | null };
+type RelationResult = RelationRecord | RelationRecord[] | null | undefined;
+
+type RecurringShiftQueryResult = Database['public']['Tables']['recurring_shift_assignments']['Row'] & {
+  position: RelationResult;
+  location: RelationResult;
+};
+
+type LocationMorningCutoff = Pick<LocationHour, 'morning_cutoff'>;
+const getRelationRecord = (relation: RelationResult): RelationRecord | null => {
+  if (!relation) return null;
+  return Array.isArray(relation) ? relation[0] ?? null : relation;
+};
 
 interface AvailabilityModalProps {
   isOpen: boolean;
@@ -240,18 +255,20 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
       if (error) throw error;
 
       // Transform the data to match our RecurringShift interface
-      const transformedData = data?.map(shift => {
-        const positionObject = Array.isArray(shift.position) ? shift.position[0] : shift.position;
-        const positionName = positionObject?.name || 'Unknown';
+      const typedData: RecurringShiftQueryResult[] = (data ?? []) as RecurringShiftQueryResult[];
 
-        const locationObject = Array.isArray(shift.location) ? shift.location[0] : shift.location;
-        const locationName = locationObject?.name || 'Unknown Location';
+      const transformedData = typedData.map((shift) => {
+        const positionRecord = getRelationRecord(shift.position);
+        const positionName = positionRecord?.name ?? 'Unknown';
 
-        // Map DB assignment_type to the interface type
-        let mappedAssignmentType: 'lead' | 'regular' | 'training' = 'regular'; // Default to 'regular'
-        if (shift.assignment_type === 'lead' || shift.assignment_type === 'regular' || shift.assignment_type === 'training') {
-          mappedAssignmentType = shift.assignment_type;
-        }
+        const locationRecord = getRelationRecord(shift.location);
+        const locationName = locationRecord?.name ?? shift.location_name ?? 'Unknown Location';
+
+        const rawAssignmentType = shift.assignment_type;
+        const mappedAssignmentType: RecurringShift['assignment_type'] =
+          rawAssignmentType === 'lead' || rawAssignmentType === 'regular' || rawAssignmentType === 'training'
+            ? rawAssignmentType
+            : 'regular';
 
         return {
           id: shift.id,
@@ -262,9 +279,9 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
           position_name: positionName,
           start_time: shift.start_time,
           end_time: shift.end_time,
-          assignment_type: mappedAssignmentType, // Use the mapped type
+          assignment_type: mappedAssignmentType,
         };
-      }) || [];
+      });
 
       setRecurringShifts(transformedData);
     } catch (err: any) {
@@ -423,9 +440,16 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
       }
 
       // Proceed with saving if no structural errors or conflicts
+      const updatePayload: TablesUpdate<'workers'> = {
+        availability: availability as Json,
+      };
+
+      const workersTable: keyof Database['public']['Tables'] = 'workers';
+
       const { error: updateError } = await supabase
-        .from('workers')
-        .update({ availability })
+      // Cast required due to Supabase update typings resolving to never after library upgrade.
+        .from(workersTable)
+        .update(updatePayload as never)
         .eq('id', employee.id);
 
       if (updateError) throw updateError;
@@ -501,7 +525,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
         // Fetch morning_cutoff for the new shift's location and day
         const { data: locationHourData, error: locationHourError } = await supabase
           .from('location_hours')
-          .select('morning_cutoff')
+          .select<'morning_cutoff', LocationMorningCutoff>('morning_cutoff')
           .eq('location_id', savedShift.location_id)
           .eq('day_of_week', savedShift.day_of_week.toLowerCase())
           .single();
@@ -510,7 +534,7 @@ export function AvailabilityModal({ isOpen, onClose, onSuccess, employee }: Avai
           throw locationHourError;
         }
 
-        const morningCutoff = locationHourData?.morning_cutoff;
+        const morningCutoff = locationHourData?.morning_cutoff ?? undefined;
 
         // Combine existing shifts for the day with the new shift
         const dayOfNewShift = savedShift.day_of_week; // This is capitalized from RecurringShift interface

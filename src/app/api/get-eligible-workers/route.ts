@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       }
 
       // NOTE: This assumes PREP_BARISTA_POSITION_ID is available as an environment variable in the Next.js server runtime.
-      const isPrepBaristaShift = template.position_id === process.env.PREP_BARISTA_POSITION_ID;
+      const isPrepBaristaShift = (template as any)?.position_id === process.env.PREP_BARISTA_POSITION_ID;
 
       const startTime = isPrepBaristaShift ? '09:30' : newShiftClientContext.startTime;
       const endTime = isPrepBaristaShift ? '17:00' : newShiftClientContext.endTime;

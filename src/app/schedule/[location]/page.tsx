@@ -171,10 +171,10 @@ const SchedulePage = () => {
 
       if (user) {
         const { data: workerData } = await supabase.from('workers').select('id').eq('user_id', user.id).single();
-        if (workerData) managerWorkerId = workerData.id;
+        if (workerData) managerWorkerId = (workerData as any)?.id;
       }
 
-      await generateWeeklySchedule(supabase, locationId, weekStart, managerWorkerId);
+      await generateWeeklySchedule(supabase as any, locationId, weekStart, managerWorkerId);
 
       mutate();
 
